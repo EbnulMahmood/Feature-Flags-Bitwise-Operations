@@ -58,7 +58,7 @@ namespace FeatureFlags.Web.Controllers
 
                 isSuccess = true;
             }
-            catch(OperationCanceledException ex)
+            catch (OperationCanceledException ex)
             {
                 message = ex.Message;
             }
@@ -141,8 +141,8 @@ namespace FeatureFlags.Web.Controllers
 
                 var user = new User
                 {
-                    Username = userViewModel.Username,
-                    Email = userViewModel.Email,
+                    Username = userViewModel.Username.Trim(),
+                    Email = userViewModel.Email.Trim(),
                     Flags = combinedFlags
                 };
 

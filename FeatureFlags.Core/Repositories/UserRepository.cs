@@ -1,7 +1,6 @@
 ﻿using Dapper;
 using FeatureFlags.Core.Dtos;
 using FeatureFlags.Core.Entities;
-using System.ComponentModel.Design;
 using System.Data;
 
 namespace FeatureFlags.Core.Repositories
@@ -66,26 +65,74 @@ ORDER BY CreatedAt DESC
 
         public async Task CreateUserAsync(User user)
         {
-            const string sql = @"INSERT INTO Users (Username, Email, CreatedAt, ModifiedAt, Flags) 
-                                VALUES (@Username, @Email, GETUTCDATE(), GETUTCDATE(), @Flags)";
+            const string insertSql = @"INSERT INTO Users (Username, Email, CreatedAt, ModifiedAt, Flags) 
+                               VALUES (@Username, @Email, GETUTCDATE(), GETUTCDATE(), @Flags)";
 
-            await _dbConnection.ExecuteAsync(sql, user);
+            if (_dbConnection.State != ConnectionState.Open)
+            {
+                _dbConnection.Open();
+            }
+
+            using var transaction = _dbConnection.BeginTransaction();
+
+            try
+            {
+                await _dbConnection.ExecuteAsync(insertSql, user, transaction);
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
 
         public async Task UpdateUserAsync(User user)
         {
             const string sql = @"UPDATE Users SET Username = @Username, Email = @Email, 
-                                CreatedAt = @CreatedAt, ModifiedAt = @ModifiedAt, Flags = @Flags 
-                                WHERE Id = @Id";
+                        CreatedAt = @CreatedAt, ModifiedAt = @ModifiedAt, Flags = @Flags 
+                        WHERE Id = @Id";
 
-            await _dbConnection.ExecuteAsync(sql, user);
+            if (_dbConnection.State != ConnectionState.Open)
+            {
+                _dbConnection.Open();
+            }
+
+            using var transaction = _dbConnection.BeginTransaction();
+
+            try
+            {
+                await _dbConnection.ExecuteAsync(sql, user, transaction);
+                transaction.Commit();
+            }
+            catch (Exception)
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
 
         public async Task DeleteUserAsync(int userId)
         {
             const string sql = @"DELETE FROM Users WHERE Id = @UserId";
 
-            await _dbConnection.ExecuteAsync(sql, new { UserId = userId });
+            if (_dbConnection.State != ConnectionState.Open)
+            {
+                _dbConnection.Open();
+            }
+
+            using var transaction = _dbConnection.BeginTransaction();
+
+            try
+            {
+                await _dbConnection.ExecuteAsync(sql, new { UserId = userId }, transaction);
+                transaction.Commit();
+            }
+            catch (Exception)
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
 
         public async Task<User?> GetUserByUsernameOrEmailAsync(string username, string email)
