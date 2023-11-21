@@ -1,5 +1,7 @@
-﻿using FeatureFlags.Core.Dtos;
+﻿using Bogus;
+using FeatureFlags.Core.Dtos;
 using FeatureFlags.Core.Entities;
+using FeatureFlags.Core.Enums;
 using FeatureFlags.Core.Helper;
 using FeatureFlags.Core.Helpers;
 using FeatureFlags.Core.Services;
@@ -115,9 +117,10 @@ namespace FeatureFlags.Web.Controllers
             }
         }
 
+        [HttpGet]
         public IActionResult Create()
         {
-            var userViewModel = new UserViewModel
+            var userViewModel = new UserCreateViewModel
             {
                 Username = string.Empty,
                 Email = string.Empty
@@ -128,7 +131,7 @@ namespace FeatureFlags.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(UserViewModel userViewModel)
+        public async Task<IActionResult> Create(UserCreateViewModel userViewModel)
         {
             if (!ModelState.IsValid)
             {
@@ -147,6 +150,7 @@ namespace FeatureFlags.Web.Controllers
                 };
 
                 await _userService.CreateUserAsync(user);
+
                 return RedirectToAction(nameof(Index));
             }
             catch (ArgumentNullException ex)
@@ -165,6 +169,132 @@ namespace FeatureFlags.Web.Controllers
             return View(userViewModel);
         }
 
+        #region Seed Data Code
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<IActionResult> Create(UserViewModel userViewModel)
+        //{
+        //    if (!ModelState.IsValid)
+        //    {
+        //        return View(userViewModel);
+        //    }
+
+        //    try
+        //    {
+        //        List<string> generatedUsernames = [];
+        //        List<string> generatedEmails = [];
+        //        List<User> userList = [];
+
+        //        var faker = new Faker<User>()
+        //            .CustomInstantiator(f => new User
+        //            {
+        //                Username = GetUniqueUsername(f),
+        //                Email = GetUniqueEmail(f),
+        //                Flags = GenerateRandomCombinedFlags()
+        //            });
+
+        //        for (int i = 0; i < 100000; i++)
+        //        {
+        //            var user = faker.Generate();
+
+        //            // Store the generated username and email to ensure uniqueness
+        //            generatedUsernames.Add(user.Username);
+        //            generatedEmails.Add(user.Email);
+
+        //            // Add the generated user to the list of users
+        //            userList.Add(user);
+        //        }
+
+        //        //string GetUniqueUsername(Faker f)
+        //        //{
+        //        //    string username;
+        //        //    do
+        //        //    {
+        //        //        username = f.Internet.UserName();
+        //        //    }
+        //        //    while (generatedUsernames.Contains(username));
+        //        //    return username;
+        //        //}
+
+        //        //string GetUniqueEmail(Faker f)
+        //        //{
+        //        //    string email;
+        //        //    do
+        //        //    {
+        //        //        email = f.Internet.Email();
+        //        //    }
+        //        //    while (generatedEmails.Contains(email));
+        //        //    return email;
+        //        //}
+
+        //        string GetUniqueUsername(Faker faker)
+        //        {
+        //            string username;
+        //            do
+        //            {
+        //                username = faker.Internet.UserName();
+        //            }
+        //            while (_userService.UsernameExistsAsync(username).Result);
+        //            return username;
+        //        }
+
+        //        string GetUniqueEmail(Faker faker)
+        //        {
+        //            string email;
+        //            do
+        //            {
+        //                email = faker.Internet.Email();
+        //            }
+        //            while (_userService.EmailExistsAsync(email).Result);
+        //            return email;
+        //        }
+
+
+        //        foreach (var user in userList)
+        //        {
+        //            await _userService.CreateUserAsync(user);
+        //        }
+
+        //        return RedirectToAction(nameof(Index));
+        //    }
+        //    catch (ArgumentNullException ex)
+        //    {
+        //        ModelState.AddModelError("", $"Error: {ex.Message}");
+        //    }
+        //    catch (ArgumentException ex)
+        //    {
+        //        ModelState.AddModelError("", $"Error: {ex.Message}");
+        //    }
+        //    catch (Exception)
+        //    {
+        //        ModelState.AddModelError("", "Failed to create the user.");
+        //    }
+
+        //    return View(userViewModel);
+        //}
+
+        //private static int GenerateRandomCombinedFlags()
+        //{
+        //    var random = new Random();
+        //    var allFlags = new List<int> { 1, 2, 4, 8, 16, 32, 64, 128 };
+
+        //    var selectedFlags = new List<int>();
+        //    var numberOfFlags = random.Next(1, allFlags.Count + 1);
+
+        //    while (selectedFlags.Count < numberOfFlags)
+        //    {
+        //        var flag = allFlags[random.Next(allFlags.Count)];
+        //        if (!selectedFlags.Contains(flag))
+        //        {
+        //            selectedFlags.Add(flag);
+        //        }
+        //    }
+
+        //    return selectedFlags.Sum();
+        //}
+        #endregion
+
+        [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
             try
@@ -173,7 +303,15 @@ namespace FeatureFlags.Web.Controllers
                 if (user == null)
                     return NotFound();
 
-                return View(user);
+                var editViewModel = new UserEditViewModel
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    Flags = (UserFlags)user.Flags // Convert int Flags to UserFlags enum
+                };
+
+                return View(editViewModel);
             }
             catch (Exception)
             {
