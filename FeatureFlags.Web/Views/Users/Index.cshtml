@@ -1,0 +1,257 @@
+﻿@using FeatureFlags.Core.Helper
+@using FeatureFlags.Core.Helpers
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+@model IEnumerable<FeatureFlags.Core.Dtos.UserDto>
+
+@{
+    var flagFilterItems = UserFlagsHelper.GetFlagFilterItems();
+}
+
+@functions
+{
+    private string? GetAntiXsrfRequestToken()
+    {
+        return Xsrf.GetAndStoreTokens(Context).RequestToken;
+    }
+}
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/dataTables.bootstrap.min.css" integrity="sha512-BMbq2It2D3J17/C7aRklzOODG1IQ3+MHw3ifzBHMBwGO/0yUqYmsStgBjI0z5EYlaDEFnvYV7gNYdD3vFLRKsA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link href="~/css/shared.css" rel="stylesheet" />
+
+<style>
+    .flag-container {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .flag {
+        display: inline-block;
+        padding: 4px 8px;
+        margin: 2px;
+        background-color: #f0f0f0;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .none {
+        background-color: #ccc;
+        color: #333;
+    }
+
+    .dark-mode {
+        background-color: #343a40;
+        color: white;
+    }
+
+    .super-admin {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    .notification-opt-in {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .metered-billing {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .rollout-chat {
+        background-color: #17a2b8;
+        color: white;
+    }
+
+    .experiment-blue {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .log-verbose {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .new-legal-disclaimer {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .action-links {
+        margin-top: 5px;
+    }
+
+    .action-link {
+        text-decoration: none;
+        color: #0366d6;
+        margin-right: 5px;
+    }
+</style>
+
+<h1>User List</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+
+<div class="row mb-3">
+    <div class="col-auto">
+        <select id="flagFilter" class="form-select">
+            <option value="">Filter by Flag</option>
+            @foreach (var item in flagFilterItems)
+            {
+                <option value="@item.Value">@item.Text</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <input type="number" id="pageSize" class="form-control" value="@Constants.datatablePageSize" min="1" step="1">
+    </div>
+    <div class="col-auto">
+        <button id="viewButton" class="btn btn-primary">View</button>
+    </div>
+</div>
+
+<div class="customMessage"></div>
+
+<table id="dataGrid" class="display table table-responsive table-striped table-bordered" style="width:100%">
+    <thead>
+        <tr>
+            <th>Serial</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Created At</th>
+            <th>Modifie At</th>
+            <th>Flags</th>
+            <th style="min-width:180px;">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js" integrity="sha512-BkpSL20WETFylMrcirBahHfSnY++H2O1W+UnEEO4yNIl+jI2+zowyoGJpbtk6bx97fBXf++WJHSSK2MV4ghPcg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script>
+        $(document).ready(function () {
+            initializeDataTable();
+
+            $('#viewButton').click(function () {
+                refreshDataTable();
+            });
+        });
+
+        const initializeDataTable = () => {
+            const dataTableId = "#dataGrid";
+            const url = '@Url.Action("UsersDatatable", "Users")';
+            const pageSize = @Constants.datatablePageSize;
+            const csrfToken = '@GetAntiXsrfRequestToken()';
+            const searchOptions = {
+                flag: '#flagFilter',
+            };
+
+            dataTableRender({
+                tableId: dataTableId,
+                url: url,
+                pageSize: pageSize,
+                csrfToken: csrfToken,
+                searchOptions: searchOptions,
+                setScrollY: '50vh',
+            });
+        };
+
+        const refreshDataTable = () => {
+            initializeDataTable();
+        };
+
+        const pageSizeValidation = (pageSize) => {
+            if ($("#pageSize").val() !== "" && $("#pageSize").val() > 0 && /^\d+$/.test($('#pageSize').val())) {
+                pageSize = $("#pageSize").val();
+            }
+            else {
+                $("#pageSize").val(pageSize);
+            }
+
+            return pageSize;
+        };
+
+        const searchOptionsKeyValueObject = (options = {}) => {
+            const configOptions = {};
+
+            for (const [key, id] of Object.entries(options)) {
+                const value = $(id).val();
+                configOptions[key] = value.trim();
+            }
+
+            return configOptions;
+        };
+
+        const getDatatableAlertMessage = (textStatus, message) => {
+            return `<div class="alert alert-${textStatus} alert-dismissible fade show" role="alert">
+                        <strong>${message}!</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>`;
+        }
+
+        const showErrorMessage = (className, message = 'Data load error. Please try again') => {
+            const errorMessage = getDatatableAlertMessage('warning', message)
+            $(className).empty();
+            $(className).append(errorMessage);
+        }
+
+        const dataTableRender = ({ tableId, url, pageSize, csrfToken = '', searchOptions = {}, setScrollY = false, fixedColumsList = false } = {}) => {
+
+            try {
+                const displayLength = pageSizeValidation(pageSize);
+
+                const options = searchOptionsKeyValueObject(searchOptions);
+
+                const requestHeader = {}
+
+                if (csrfToken !== '' && csrfToken !== null) {
+                    requestHeader["RequestVerificationToken"] = csrfToken;
+                }
+
+                $(tableId).DataTable({
+                    destroy: true,
+                    processing: true,
+                    searching: false,
+                    serverSide: true,
+                    scrollX: true,
+                    scrollY: setScrollY,
+                    bLengthChange: false,
+                    iDisplayLength: parseInt(displayLength),
+                    async: true,
+                    bSort: false,
+                    fixedColumns: fixedColumsList,
+                    ajax: {
+                        url: url,
+                        type: "POST",
+                        async: true,
+                        headers: requestHeader,
+                        data: (data) => {
+                            return $.extend({}, data, options)
+                        },
+                        dataSrc: function (json) {
+                            console.log(json);
+                            if (json.isSuccess === false) {
+                                showErrorMessage('.customMessage', json.message);
+                            }
+                            return json.data;
+                        },
+                        error: function (response) {
+                            showErrorMessage('.customMessage');
+                        }
+                    }
+                });
+            } catch (ex) {
+                showErrorMessage('.customMessage');
+            }
+        };
+    </script>
+}
