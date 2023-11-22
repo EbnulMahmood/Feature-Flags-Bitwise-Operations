@@ -346,7 +346,6 @@ namespace FeatureFlags.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [ActionName("DeleteConfirmed")]
         public async Task<JsonResult> DeleteConfirmed(int id)
         {
             bool isSuccess = false;
