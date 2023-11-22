@@ -1,5 +1,4 @@
-﻿using Bogus;
-using FeatureFlags.Core.Dtos;
+﻿using FeatureFlags.Core.Dtos;
 using FeatureFlags.Core.Entities;
 using FeatureFlags.Core.Enums;
 using FeatureFlags.Core.Helper;
@@ -43,7 +42,7 @@ namespace FeatureFlags.Web.Controllers
                 foreach (var item in userList)
                 {
                     var flags = GetFlags(item.Flags);
-                    var userActions = GetUserActions(item.Id);
+                    var userActions = GetUserActions(item.Id, item.Username);
 
                     var row = new List<string>
                     {
@@ -90,31 +89,13 @@ namespace FeatureFlags.Web.Controllers
             return flagContainer.ToString();
         }
 
-        private static string GetUserActions(int userId)
+        private string GetUserActions(int userId, string username)
         {
             return $@"
 <div class='btn-group action-links' role='group'>
-    <a href='/Details/{userId}' class='btn btn-outline-primary action-link'>Details</a>
-    <a href='/Edit/{userId}' class='btn btn-outline-secondary action-link'>Edit</a>
-    <a href='/Delete/{userId}' class='btn btn-outline-danger action-link delete'>Delete</a>
+    <a href='{Url.Action(nameof(Edit), "Users", new { id = userId })}' class='btn btn-outline-secondary action-link'>Edit</a>
+    <button type='button' href='#' data-name='{username}' data-id='{userId}' class='btn btn-outline-danger action-link delete-action'>Delete</button>
 </div>";
-        }
-
-
-        public async Task<IActionResult> Details(int id)
-        {
-            try
-            {
-                var user = await _userService.GetUserByIdAsync(id);
-                if (user == null)
-                    return NotFound();
-
-                return View(user);
-            }
-            catch (Exception)
-            {
-                return View("Error");
-            }
         }
 
         [HttpGet]
@@ -308,7 +289,7 @@ namespace FeatureFlags.Web.Controllers
                     Id = user.Id,
                     Username = user.Username,
                     Email = user.Email,
-                    Flags = (UserFlags)user.Flags // Convert int Flags to UserFlags enum
+                    Flags = (UserFlags)(user.Flags ?? (int)UserFlags.None)
                 };
 
                 return View(editViewModel);
@@ -321,55 +302,80 @@ namespace FeatureFlags.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id, Username, Email, CreatedAt, ModifiedAt, Flags")] User user)
+        public async Task<IActionResult> Edit(int id, UserEditViewModel userViewModel)
         {
-            if (id != user.Id)
+            if (id != userViewModel.Id)
                 return BadRequest("User ID in the request body doesn't match the route parameter.");
 
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                try
-                {
-                    await _userService.UpdateUserAsync(user);
-                    return RedirectToAction(nameof(Index));
-                }
-                catch (Exception)
-                {
-                    ModelState.AddModelError("", "Failed to update the user.");
-                }
+                return View(userViewModel);
             }
-            return View(user);
-        }
 
-        public async Task<IActionResult> Delete(int id)
-        {
             try
             {
-                var user = await _userService.GetUserByIdAsync(id);
-                if (user == null)
-                    return NotFound();
+                var combinedFlags = UserFlagsHelper.GetCombinedFlags(userViewModel.Flags);
 
-                return View(user);
-            }
-            catch (Exception)
-            {
-                return View("Error");
-            }
-        }
+                var user = new User
+                {
+                    Id = userViewModel.Id,
+                    Username = userViewModel.Username.Trim(),
+                    Email = userViewModel.Email.Trim(),
+                    Flags = combinedFlags
+                };
 
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            try
-            {
-                await _userService.DeleteUserAsync(id);
+                await _userService.UpdateUserAsync(user);
+
                 return RedirectToAction(nameof(Index));
             }
+            catch (ArgumentNullException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
+            }
+            catch (ArgumentException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
+            }
             catch (Exception)
             {
-                return RedirectToAction(nameof(Delete), new { id, error = true });
+                ModelState.AddModelError("", "Failed to create the user.");
             }
+
+            return View(userViewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [ActionName("DeleteConfirmed")]
+        public async Task<JsonResult> DeleteConfirmed(int id)
+        {
+            bool isSuccess = false;
+            string message;
+
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    throw new InvalidDataException("Error deleting user");
+                }
+
+                var userToDelete = await _userService.GetUserByIdAsync(id) ?? throw new InvalidDataException("Invalid user found");
+
+                await _userService.DeleteUserAsync(id);
+
+                isSuccess = true;
+                message = "User sucessfully deleted";
+            }
+            catch (InvalidDataException ex)
+            {
+                message = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+            }
+
+            return Json(new { isSuccess, message });
         }
     }
 }

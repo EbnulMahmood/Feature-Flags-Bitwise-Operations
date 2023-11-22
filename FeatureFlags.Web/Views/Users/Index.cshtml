@@ -4,6 +4,10 @@
 @model IEnumerable<FeatureFlags.Core.Dtos.UserDto>
 
 @{
+    ViewData["Title"] = "Manage";
+}
+
+@{
     var flagFilterItems = UserFlagsHelper.GetFlagFilterItems();
 }
 
@@ -15,7 +19,6 @@
     }
 }
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/dataTables.bootstrap.min.css" integrity="sha512-BMbq2It2D3J17/C7aRklzOODG1IQ3+MHw3ifzBHMBwGO/0yUqYmsStgBjI0z5EYlaDEFnvYV7gNYdD3vFLRKsA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <link href="~/css/shared.css" rel="stylesheet" />
 
@@ -126,7 +129,7 @@
             <th>Created At</th>
             <th>Modifie At</th>
             <th>Flags</th>
-            <th style="min-width:180px;">Action</th>
+            <th style="min-width:120px;">Action</th>
         </tr>
     </thead>
     <tbody>
@@ -134,8 +137,8 @@
 </table>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js" integrity="sha512-BkpSL20WETFylMrcirBahHfSnY++H2O1W+UnEEO4yNIl+jI2+zowyoGJpbtk6bx97fBXf++WJHSSK2MV4ghPcg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/5.5.2/bootbox.min.js" integrity="sha512-RdSPYh1WA6BF0RhpisYJVYkOyTzK4HwofJ3Q7ivt/jkpW6Vc8AurL1R+4AUcvn9IwEKAPm/fk7qFZW3OuiUDeg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <script>
         $(document).ready(function () {
@@ -144,7 +147,87 @@
             $('#viewButton').click(function () {
                 refreshDataTable();
             });
+
+            $(document).on("click", ".delete-action", function () {
+                const itemId = $(this).attr("data-id");
+                const itemName = $(this).attr("data-name");
+                const url = '@Url.Action("DeleteConfirmed", "Users")';
+                const csrfToken = '@GetAntiXsrfRequestToken()';
+
+                deleteItemAjaxBootbox(itemId, itemName, url, refreshDataTable, csrfToken);
+
+            });
         });
+
+        const getRequestHeader = (csrfToken) => {
+            const requestHeader = {}
+
+            if (csrfToken !== '' && csrfToken !== null) {
+                requestHeader["RequestVerificationToken"] = csrfToken;
+            }
+
+            return requestHeader;
+        }
+
+        const deleteItemAjaxBootbox = (itemId, itemName, url, onDeleteCallDatatable, csrfToken = '') => {
+            try {
+                bootbox.confirm({
+                    title: "Are you sure?",
+                    message: `You're about to delete ${itemName}!`,
+                    centerVertical: true,
+                    closeButton: true,
+                    buttons: {
+                        cancel: {
+                            label: 'Cancel',
+                            className: 'btn-success'
+                        },
+                        confirm: {
+                            label: 'Delete',
+                            className: 'btn-danger'
+                        }
+                    },
+                    callback: function (result) {
+                        if (result === true) {
+                            $.ajax({
+                                type: 'POST',
+                                async: true,
+                                headers: getRequestHeader(csrfToken),
+                                url: url,
+                                data: {
+                                    'id': itemId
+                                },
+                                success: function (response, textStatus, xhr) {
+                                    $('.customMessage').empty();
+
+                                    if (response.isSuccess === true) {
+                                        const successMessage = getAlertMessage('success', response.message);
+                                        $('.customMessage').append(successMessage);
+                                    } else {
+                                        const warningMessage = getAlertMessage('warning', response.message);
+                                        $('.customMessage').append(warningMessage);
+                                    }
+
+                                    onDeleteCallDatatable();
+                                },
+                                error: function () {
+                                    const errorMessage = getAlertMessage('danger', 'Error occurred while deleting item.');
+                                    $('.customMessage').empty().append(errorMessage);
+                                }
+                            });
+                        }
+                    }
+                });
+            } catch (ex) {
+                showErrorMessage('.customMessage');
+            }
+        }
+
+        const getAlertMessage = (textStatus, message) => {
+            return `<div class="alert alert-${textStatus} alert-dismissible fade show" role="alert">
+                        <strong>${message}!</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>`;
+        }
 
         const initializeDataTable = () => {
             const dataTableId = "#dataGrid";
@@ -211,12 +294,6 @@
 
                 const options = searchOptionsKeyValueObject(searchOptions);
 
-                const requestHeader = {}
-
-                if (csrfToken !== '' && csrfToken !== null) {
-                    requestHeader["RequestVerificationToken"] = csrfToken;
-                }
-
                 $(tableId).DataTable({
                     destroy: true,
                     processing: true,
@@ -233,7 +310,7 @@
                         url: url,
                         type: "POST",
                         async: true,
-                        headers: requestHeader,
+                        headers: getRequestHeader(csrfToken),
                         data: (data) => {
                             return $.extend({}, data, options)
                         },

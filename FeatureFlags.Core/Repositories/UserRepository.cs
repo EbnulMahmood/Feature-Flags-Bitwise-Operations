@@ -10,16 +10,16 @@ namespace FeatureFlags.Core.Repositories
         Task CreateUserAsync(User user);
         Task DeleteUserAsync(int userId);
         Task<User?> GetUserByIdAsync(int userId);
-        Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, CancellationToken token = default);
+        Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null);
         Task UpdateUserAsync(User user);
-        Task<User?> GetUserByUsernameOrEmailAsync(string username, string email);
+        Task<User?> GetUserByUsernameOrEmailAsync(string username, string email, int userIdToExclude = 0);
     }
 
     internal sealed class UserRepository(IDbConnection dbConnection) : IUserRepository
     {
         private readonly IDbConnection _dbConnection = dbConnection;
 
-        public async Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, CancellationToken token = default)
+        public async Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null)
         {
             string conditionQuery = string.Empty;
 
@@ -90,7 +90,7 @@ ORDER BY CreatedAt DESC
         public async Task UpdateUserAsync(User user)
         {
             const string sql = @"UPDATE Users SET Username = @Username, Email = @Email, 
-                        CreatedAt = @CreatedAt, ModifiedAt = @ModifiedAt, Flags = @Flags 
+                        ModifiedAt = GETUTCDATE(), Flags = @Flags 
                         WHERE Id = @Id";
 
             if (_dbConnection.State != ConnectionState.Open)
@@ -135,13 +135,25 @@ ORDER BY CreatedAt DESC
             }
         }
 
-        public async Task<User?> GetUserByUsernameOrEmailAsync(string username, string email)
+        public async Task<User?> GetUserByUsernameOrEmailAsync(string username, string email, int userIdToExclude = 0)
         {
-            const string query = @"
-            SELECT * FROM Users
-            WHERE Username = @username OR Email = @email";
+            string conditionQuery = string.Empty;
+            object param = new { username, email };
 
-            return await _dbConnection.QueryFirstOrDefaultAsync<User>(query, new { username, email });
+            if (userIdToExclude != 0)
+            {
+                conditionQuery += "AND Id != @userIdToExclude";
+                param = new { username, email, userIdToExclude };
+            }
+
+            string query = $@"
+SELECT 
+* 
+FROM Users 
+WHERE (Username = @username OR Email = @email) 
+{conditionQuery}";
+
+            return await _dbConnection.QueryFirstOrDefaultAsync<User>(query, param);
         }
     }
 }

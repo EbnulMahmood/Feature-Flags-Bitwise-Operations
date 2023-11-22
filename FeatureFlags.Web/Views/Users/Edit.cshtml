@@ -1,6 +1,10 @@
 ﻿@model FeatureFlags.Core.ViewModels.UserEditViewModel
 @using FeatureFlags.Core.Helpers.TagHelpers
 
+@{
+    ViewData["Title"] = "Edit";
+}
+
 <style>
     .custom-checkbox-spacing .form-check {
         margin-bottom: 10px;
@@ -30,7 +34,7 @@
         <span asp-validation-for="Email" class="text-danger"></span>
     </div>
 
-    @Html.EnumCheckboxesFor(model => model.Flags, includeControlLabel: false, customCssClass: "custom-checkbox-spacing")
+    @Html.EnumCheckboxesFor(model => model.Flags, Model.Flags, "custom-checkbox-spacing", false)
 
     <div class="form-group">
         <button type="submit" class="btn btn-primary">Save Changes</button>

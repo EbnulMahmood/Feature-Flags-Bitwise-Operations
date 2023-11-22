@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
 using System.Text;
 
@@ -11,6 +10,7 @@ namespace FeatureFlags.Core.Helpers.TagHelpers
         public static IHtmlContent EnumCheckboxesFor<TModel, TEnum>(
             this IHtmlHelper<TModel> htmlHelper,
             Expression<Func<TModel, TEnum>> expression,
+            TEnum modelValue,
             string? customCssClass = null,
             bool includeControlLabel = true)
             where TEnum : Enum
@@ -22,19 +22,10 @@ namespace FeatureFlags.Core.Helpers.TagHelpers
 
             foreach (var value in values)
             {
-                if ((int)value != 0)
+                int flagValue = (int)value;
+                if (flagValue != 0)
                 {
-                    var valueString = value.ToString();
-                    var fieldInfo = !string.IsNullOrEmpty(valueString)
-                        ? enumType.GetField(valueString)
-                        : null;
-
-                    var displayAttribute = fieldInfo?
-                        .GetCustomAttributes(typeof(DisplayAttribute), false)?
-                        .OfType<DisplayAttribute>()?
-                        .FirstOrDefault();
-
-                    var displayName = displayAttribute?.Name ?? valueString;
+                    var displayName = Enum.GetName(enumType, value);
 
                     stringBuilder.AppendLine($"<div class=\"form-group {customCssClass}\">");
 
@@ -44,11 +35,13 @@ namespace FeatureFlags.Core.Helpers.TagHelpers
                             $@"<label class=""control-label"">{displayName}</label>");
                     }
 
+                    var isChecked = modelValue.HasFlag((TEnum)value) ? "checked" : "";
+
                     stringBuilder.AppendLine(
                         $@"<div class=""form-check form-switch"">
-                            <input class=""form-check-input"" type=""checkbox"" id=""{value}"" name=""{htmlHelper.NameFor(expression)}"" value=""{(int)value}"" />
-                            <label class=""form-check-label"" for=""{value}"">{displayName}</label>
-                        </div>");
+                    <input {isChecked} class=""form-check-input"" type=""checkbox"" id=""{flagValue}"" name=""{htmlHelper.NameFor(expression)}"" value=""{flagValue}"" />
+                    <label class=""form-check-label"" for=""{flagValue}"">{displayName}</label>
+                </div>");
 
                     stringBuilder.AppendLine("</div>");
                 }

@@ -31,7 +31,7 @@ namespace FeatureFlags.Core.Services
                     throw new InvalidDataException("Page Size is less than zero");
                 }
 
-                return await _userRepository.LoadUsersAsync(start, length, flag, token);
+                return await _userRepository.LoadUsersAsync(start, length, flag);
             }
             catch (Exception)
             {
@@ -55,26 +55,7 @@ namespace FeatureFlags.Core.Services
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(user.Username))
-                {
-                    throw new ArgumentException("Username cannot be empty.");
-                }
-
-                if (string.IsNullOrWhiteSpace(user.Email))
-                {
-                    throw new ArgumentException("Email cannot be empty.");
-                }
-
-                if (!IsValidEmail(user.Email))
-                {
-                    throw new ArgumentException("Invalid email format.");
-                }
-
-                var existingUser = await UserExists(user.Username, user.Email);
-                if (existingUser != false)
-                {
-                    throw new ArgumentException("User with the same Username or Email already exists.");
-                }
+                await ValidateUserDataAsync(user.Username, user.Email);
 
                 await _userRepository.CreateUserAsync(user);
             }
@@ -84,10 +65,46 @@ namespace FeatureFlags.Core.Services
             }
         }
 
-        private async Task<bool> UserExists(string username, string email)
+        public async Task UpdateUserAsync(User user)
         {
-            var existingUser = await _userRepository.GetUserByUsernameOrEmailAsync(username, email);
-            return existingUser != null;
+            try
+            {
+                await ValidateUserDataAsync(user.Username, user.Email, user.Id);
+
+                await _userRepository.UpdateUserAsync(user);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        private async Task ValidateUserDataAsync(string username, string email, int userId = 0)
+        {
+            ValidateUsername(username);
+            ValidateEmail(email);
+            await ValidateExistingUserAsync(username, email, userId);
+        }
+
+        private static void ValidateUsername(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be empty.");
+            }
+        }
+
+        private static void ValidateEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                throw new ArgumentException("Email cannot be empty.");
+            }
+
+            if (!IsValidEmail(email))
+            {
+                throw new ArgumentException("Invalid email format.");
+            }
         }
 
         private static bool IsValidEmail(string email)
@@ -103,15 +120,13 @@ namespace FeatureFlags.Core.Services
             }
         }
 
-        public async Task UpdateUserAsync(User user)
+        private async Task ValidateExistingUserAsync(string username, string email, int userId = 0)
         {
-            try
+            var existingUser = await _userRepository.GetUserByUsernameOrEmailAsync(username, email, userId);
+
+            if (existingUser != null)
             {
-                await _userRepository.UpdateUserAsync(user);
-            }
-            catch (Exception)
-            {
-                throw;
+                throw new ArgumentException("User with the same Username or Email already exists.");
             }
         }
 
