@@ -5,9 +5,6 @@
 
 @{
     ViewData["Title"] = "Manage";
-}
-
-@{
     var flagFilterItems = UserFlagsHelper.GetFlagFilterItems();
 }
 
@@ -94,14 +91,10 @@
     }
 </style>
 
-<h1>User List</h1>
-
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
+<h1 class="display-6 fw-bold mb-4">Manage</h1>
 
 <div class="row mb-3">
-    <div class="col-auto">
+    <div class="col-md-3">
         <select id="flagFilter" class="form-select">
             <option value="">Filter by Flag</option>
             @foreach (var item in flagFilterItems)
@@ -110,11 +103,16 @@
             }
         </select>
     </div>
-    <div class="col-auto">
+    <div class="col-md-3">
         <input type="number" id="pageSize" class="form-control" value="@Constants.datatablePageSize" min="1" step="1">
     </div>
-    <div class="col-auto">
-        <button id="viewButton" class="btn btn-primary">View</button>
+    <div class="col-3">
+        <button id="viewButton" class="btn btn-secondary">View</button>
+    </div>
+    <div class="col-md-3">
+        <div class="d-flex justify-content-md-end">
+            <a asp-action="Create" class="btn btn-success">Add New</a>
+        </div>
     </div>
 </div>
 

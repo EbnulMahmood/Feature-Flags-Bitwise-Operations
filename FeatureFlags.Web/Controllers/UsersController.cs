@@ -93,8 +93,8 @@ namespace FeatureFlags.Web.Controllers
         {
             return $@"
 <div class='btn-group action-links' role='group'>
-    <a href='{Url.Action(nameof(Edit), "Users", new { id = userId })}' class='btn btn-outline-secondary action-link'>Edit</a>
-    <button type='button' href='#' data-name='{username}' data-id='{userId}' class='btn btn-outline-danger action-link delete-action'>Delete</button>
+    <a href='{Url.Action(nameof(Edit), "Users", new { id = userId })}' class='btn btn-outline-warning action-link'>Edit</a>
+    <button type='button' href='#' data-name='{username}' data-id='{userId}' class='btn btn-outline-danger action-link delete-action'>Remove</button>
 </div>";
         }
 
