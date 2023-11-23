@@ -8,7 +8,7 @@ namespace FeatureFlags.Core.Services
     {
         Task CreateUserAsync(User user);
         Task DeleteUserAsync(int userId);
-        Task<User?> GetUserByIdAsync(int userId);
+        Task<UserDto?> GetUserByIdAsync(int userId);
         Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, CancellationToken token = default);
         Task UpdateUserAsync(User user);
     }
@@ -39,7 +39,7 @@ namespace FeatureFlags.Core.Services
             }
         }
 
-        public async Task<User?> GetUserByIdAsync(int userId)
+        public async Task<UserDto?> GetUserByIdAsync(int userId)
         {
             try
             {

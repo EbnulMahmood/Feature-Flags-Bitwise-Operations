@@ -272,15 +272,8 @@
             return configOptions;
         };
 
-        const getDatatableAlertMessage = (textStatus, message) => {
-            return `<div class="alert alert-${textStatus} alert-dismissible fade show" role="alert">
-                        <strong>${message}!</strong>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>`;
-        }
-
         const showErrorMessage = (className, message = 'Data load error. Please try again') => {
-            const errorMessage = getDatatableAlertMessage('warning', message)
+            const errorMessage = getAlertMessage('warning', message)
             $(className).empty();
             $(className).append(errorMessage);
         }

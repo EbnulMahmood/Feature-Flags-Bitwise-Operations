@@ -9,7 +9,7 @@ namespace FeatureFlags.Core.Repositories
     {
         Task CreateUserAsync(User user);
         Task DeleteUserAsync(int userId);
-        Task<User?> GetUserByIdAsync(int userId);
+        Task<UserDto?> GetUserByIdAsync(int userId);
         Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null);
         Task UpdateUserAsync(User user);
         Task<User?> GetUserByUsernameOrEmailAsync(string username, string email, int userIdToExclude = 0);
@@ -58,9 +58,9 @@ ORDER BY CreatedAt DESC
             return await _dbConnection.QueryAsync<UserDto>(query);
         }
 
-        public async Task<User?> GetUserByIdAsync(int userId)
+        public async Task<UserDto?> GetUserByIdAsync(int userId)
         {
-            return await _dbConnection.QueryFirstOrDefaultAsync<User>("SELECT * FROM Users WHERE Id = @UserId", new { UserId = userId });
+            return await _dbConnection.QueryFirstOrDefaultAsync<UserDto>("SELECT * FROM Users WHERE Id = @UserId", new { UserId = userId });
         }
 
         public async Task CreateUserAsync(User user)

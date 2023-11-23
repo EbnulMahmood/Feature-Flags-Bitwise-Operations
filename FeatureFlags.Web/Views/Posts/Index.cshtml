@@ -1,0 +1,31 @@
+﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+@model IEnumerable<FeatureFlags.Core.Dtos.PostDto>
+
+@{
+    ViewData["Title"] = "Manage";
+}
+
+@functions
+{
+    private string? GetAntiXsrfRequestToken()
+    {
+        return Xsrf.GetAndStoreTokens(Context).RequestToken;
+    }
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/dataTables.bootstrap.min.css" integrity="sha512-BMbq2It2D3J17/C7aRklzOODG1IQ3+MHw3ifzBHMBwGO/0yUqYmsStgBjI0z5EYlaDEFnvYV7gNYdD3vFLRKsA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link href="~/css/shared.css" rel="stylesheet" />
+
+<style>
+    .action-links {
+        margin-top: 5px;
+    }
+
+    .action-link {
+        text-decoration: none;
+        color: #0366d6;
+        margin-right: 5px;
+    }
+</style>
+
+<h1 class="display-6 fw-bold mb-4">Manage</h1>

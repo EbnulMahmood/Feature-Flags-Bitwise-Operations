@@ -9,7 +9,10 @@ namespace FeatureFlags.Core.Extensions
         public static void AddDependencyExtension(this IServiceCollection services)
         {
             services.AddTransient<IUserRepository, UserRepository>();
+            services.AddTransient<IPostRepository, PostRepository>();
+
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IPostService, PostService>();
         }
     }
 }
