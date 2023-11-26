@@ -1,4 +1,5 @@
-﻿using FeatureFlags.Core.Dtos;
+﻿using Bogus;
+using FeatureFlags.Core.Dtos;
 using FeatureFlags.Core.Entities;
 using FeatureFlags.Core.Helpers;
 using FeatureFlags.Core.Services;
@@ -109,31 +110,113 @@ namespace FeatureFlags.Web.Controllers
             return View(postViewModel);
         }
 
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<IActionResult> Create(PostCreateViewModel postViewModel)
+        //{
+        //    try
+        //    {
+        //        if (!ModelState.IsValid)
+        //        {
+        //            throw new InvalidDataException("Invalid data found");
+        //        }
+
+        //        if (postViewModel.UserId == 0) throw new InvalidDataException("Invalid User found");
+
+        //        var post = new Post
+        //        {
+        //            Title = postViewModel.Title.Trim(),
+        //            Content = postViewModel.Content.Trim(),
+        //            UserId = postViewModel.UserId
+        //        };
+
+        //        await _postService.CreatePostAsync(post);
+
+        //        return RedirectToAction(nameof(Index));
+        //    }
+        //    catch (InvalidDataException ex)
+        //    {
+        //        ModelState.AddModelError("", $"Error: {ex.Message}");
+        //    }
+        //    catch (ArgumentException ex)
+        //    {
+        //        ModelState.AddModelError("", $"Error: {ex.Message}");
+        //    }
+        //    catch (Exception)
+        //    {
+        //        ModelState.AddModelError("", "Failed to create the post.");
+        //    }
+
+        //    return View(postViewModel);
+        //}
+
+        #region Seed Data Code
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(PostCreateViewModel postViewModel)
         {
+            if (!ModelState.IsValid)
+            {
+                return View(postViewModel);
+            }
+
             try
             {
-                if (!ModelState.IsValid)
+                List<string> generatedTitles = [];
+                List<Post> postList = [];
+
+                var faker = new Faker<Post>()
+                    .CustomInstantiator(f => new Post
+                    {
+                        Title = GetUniqueTitle(f),
+                        Content = GetRandomContent(f),
+                        UserId = GetRandomUserId(),
+                    });
+
+                for (int i = 0; i < 50000; i++)
                 {
-                    throw new InvalidDataException("Invalid data found");
+                    var post = faker.Generate();
+
+                    // Store the generated title to ensure uniqueness
+                    generatedTitles.Add(post.Title);
+
+                    // Add the generated post to the list
+                    postList.Add(post);
                 }
 
-                if (postViewModel.UserId == 0) throw new InvalidDataException("Invalid User found");
-
-                var post = new Post
+                string GetUniqueTitle(Faker faker)
                 {
-                    Title = postViewModel.Title.Trim(),
-                    Content = postViewModel.Content.Trim(),
-                    UserId = postViewModel.UserId
-                };
+                    string title;
+                    do
+                    {
+                        title = faker.Lorem.Sentence();
+                        if (title.Length > 100)
+                        {
+                            title = title[..100];
+                        }
+                    }
+                    while (_postService.TitleExistsAsync(title).Result);
+                    return title.Trim();
+                }
 
-                await _postService.CreatePostAsync(post);
+                string GetRandomContent(Faker faker)
+                {
+                    return faker.Lorem.Paragraph().Trim();
+                }
+
+                int GetRandomUserId()
+                {
+                    return _postService.GetRandomUserIdAsync().Result;
+                }
+
+                foreach (var post in postList)
+                {
+                    await _postService.CreatePostAsync(post);
+                }
 
                 return RedirectToAction(nameof(Index));
             }
-            catch (InvalidDataException ex)
+            catch (ArgumentNullException ex)
             {
                 ModelState.AddModelError("", $"Error: {ex.Message}");
             }
@@ -148,6 +231,7 @@ namespace FeatureFlags.Web.Controllers
 
             return View(postViewModel);
         }
+        #endregion
 
         [HttpGet]
         public async Task<IActionResult> Edit(int id)

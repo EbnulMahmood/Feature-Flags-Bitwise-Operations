@@ -2,6 +2,7 @@
 using FeatureFlags.Core.Dtos;
 using FeatureFlags.Core.Entities;
 using System.Data;
+using System.Data.Common;
 
 namespace FeatureFlags.Core.Repositories
 {
@@ -13,6 +14,8 @@ namespace FeatureFlags.Core.Repositories
         Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0);
         Task UpdatePostAsync(Post post);
         Task<Post?> GetPostByTitleAndUserIdAsync(string title, int userId, int postId = 0);
+        Task<int> GetRandomUserIdAsync();
+        Task<bool> TitleExistsAsync(string title);
     }
 
     internal sealed class PostRepository(IDbConnection dbConnection) : IPostRepository
@@ -158,6 +161,23 @@ AND UserId = @UserId
 {conditionQuery}";
 
             return await _dbConnection.QueryFirstOrDefaultAsync<Post>(sql, param);
+        }
+
+        public async Task<int> GetRandomUserIdAsync()
+        {
+            string query = "SELECT TOP 1 Id FROM Users ORDER BY NEWID()";
+
+            return await _dbConnection.QueryFirstOrDefaultAsync<int>(query);
+        }
+
+        public async Task<bool> TitleExistsAsync(string title)
+        {
+            string query = "SELECT COUNT(*) FROM Posts WHERE Title = @Title;";
+            var parameters = new { Title = title };
+
+            var count = await _dbConnection.ExecuteScalarAsync<int>(query, parameters);
+
+            return count > 0;
         }
     }
 }

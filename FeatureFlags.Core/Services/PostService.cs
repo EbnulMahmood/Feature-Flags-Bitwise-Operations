@@ -11,6 +11,8 @@ namespace FeatureFlags.Core.Services
         Task<PostDto?> GetPostByIdAsync(int postId);
         Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0, CancellationToken token = default);
         Task UpdatePostAsync(Post post);
+        Task<int> GetRandomUserIdAsync();
+        Task<bool> TitleExistsAsync(string title);
     }
 
     internal sealed class PostService(IPostRepository postRepository) : IPostService
@@ -128,6 +130,30 @@ namespace FeatureFlags.Core.Services
             try
             {
                 await _postRepository.DeletePostAsync(postId);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public async Task<int> GetRandomUserIdAsync()
+        {
+            try
+            {
+                return await _postRepository.GetRandomUserIdAsync();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public async Task<bool> TitleExistsAsync(string title)
+        {
+            try
+            {
+                return await _postRepository.TitleExistsAsync(title);
             }
             catch (Exception)
             {
