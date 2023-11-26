@@ -2,13 +2,15 @@
 using FeatureFlags.Core.Entities;
 using FeatureFlags.Core.Helpers;
 using FeatureFlags.Core.Services;
+using FeatureFlags.Core.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FeatureFlags.Web.Controllers
 {
-    public class PostsController(IPostService postService) : Controller
+    public class PostsController(IPostService postService, IUserService userService) : Controller
     {
         private readonly IPostService _postService = postService ?? throw new ArgumentNullException(nameof(postService));
+        private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 
         [HttpGet]
         public IActionResult Index()
@@ -18,9 +20,9 @@ namespace FeatureFlags.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<JsonResult> PostsDatatable(int draw, int start, int length, CancellationToken token = default)
+        public async Task<JsonResult> PostsDatatable(int draw, int start, int length, string keyword = "", int userId = 0, CancellationToken token = default)
         {
-            List<List<string>> data = [];
+            var data = new List<List<string>>();
             int recordsTotal = 0;
             int recordsFiltered = 0;
             string message = string.Empty;
@@ -30,7 +32,7 @@ namespace FeatureFlags.Web.Controllers
             {
                 length = length <= 0 ? Constants.datatablePageSize : length;
 
-                IEnumerable<PostDto> postList = await _postService.LoadPostsAsync(start, length) ?? [];
+                IEnumerable<PostDto> postList = await _postService.LoadPostsAsync(start, length, keyword, userId, token) ?? new List<PostDto>();
                 recordsTotal = postList.FirstOrDefault()?.DataCount ?? 0;
                 recordsFiltered = recordsTotal;
 
@@ -39,15 +41,16 @@ namespace FeatureFlags.Web.Controllers
                 {
                     var postActions = GetPostActions(item.Id, item.Title);
 
-                    List<string> row = [
-                        (sl++).ToString(),
+                    var row = new List<string>
+                    {
+                        sl++.ToString(),
                         item.Title,
                         item.Content,
-                        item.UserId.ToString(),
+                        item.UserName,
                         item.CreatedAt.ToString("MMM dd, yyyy hh:mm:ss tt"),
                         item.ModifiedAt?.ToString("MMM dd, yyyy hh:mm:ss tt") ?? "-",
                         postActions
-                    ];
+                    };
                     data.Add(row);
                 }
 
@@ -78,77 +81,177 @@ namespace FeatureFlags.Web.Controllers
 </div>";
         }
 
-        public IActionResult Create()
-        {
-            return View();
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Post post)
-        {
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    await _postService.CreatePostAsync(post);
-                    return RedirectToAction(nameof(Index));
-                }
-                catch (Exception)
-                {
-                    ModelState.AddModelError("", "Failed to create the post.");
-                }
-            }
-            return View(post);
-        }
-
-        public async Task<IActionResult> Edit(int id)
-        {
-            var post = await _postService.GetPostByIdAsync(id);
-            if (post == null)
-            {
-                return NotFound();
-            }
-            return View(post);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Post post)
-        {
-            if (id != post.Id)
-            {
-                return BadRequest();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    await _postService.UpdatePostAsync(post);
-                    return RedirectToAction(nameof(Index));
-                }
-                catch (Exception)
-                {
-                    ModelState.AddModelError("", "Failed to update the post.");
-                }
-            }
-            return View(post);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        [HttpGet]
+        public async Task<JsonResult> ListUserDropdown(string term, int page)
         {
             try
             {
-                await _postService.DeletePostAsync(id);
-                return Json(new { isSuccess = true, message = "Post successfully deleted" });
+                int resultCount = 100;
+                var userDropdownList = await _userService.ListUserDropdownAsync(term, page, resultCount);
+                return new JsonResult(userDropdownList);
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+
+        [HttpGet]
+        public IActionResult Create()
+        {
+            var postViewModel = new PostCreateViewModel
+            {
+                Title = string.Empty,
+                Content = string.Empty
+            };
+
+            return View(postViewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(PostCreateViewModel postViewModel)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    throw new InvalidDataException("Invalid data found");
+                }
+
+                if (postViewModel.UserId == 0) throw new InvalidDataException("Invalid User found");
+
+                var post = new Post
+                {
+                    Title = postViewModel.Title.Trim(),
+                    Content = postViewModel.Content.Trim(),
+                    UserId = postViewModel.UserId
+                };
+
+                await _postService.CreatePostAsync(post);
+
+                return RedirectToAction(nameof(Index));
+            }
+            catch (InvalidDataException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
+            }
+            catch (ArgumentException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
+            }
+            catch (Exception)
+            {
+                ModelState.AddModelError("", "Failed to create the post.");
+            }
+
+            return View(postViewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
+        {
+            var editViewModel = new PostEditViewModel { Title = string.Empty, Content = string.Empty };
+
+            try
+            {
+                var post = await _postService.GetPostByIdAsync(id) ?? throw new InvalidDataException("Invalid post");
+
+                editViewModel.Id = post.Id;
+                editViewModel.Title = post.Title;
+                editViewModel.Content = post.Content;
+                editViewModel.UserId = post.UserId;
+            }
+            catch (InvalidDataException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
             }
             catch (Exception ex)
             {
-                return Json(new { isSuccess = false, message = ex.Message });
+                ModelState.AddModelError("", $"Error: {ex.Message}");
             }
+
+            return View(editViewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, PostEditViewModel editViewModel)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    throw new InvalidDataException("Invalid data found");
+                }
+
+                if (id != editViewModel.Id)
+                {
+                    throw new InvalidDataException("Post ID in the request body doesn't match the route parameter.");
+                }
+
+                var post = new Post
+                {
+                    Id = editViewModel.Id,
+                    Title = editViewModel.Title.Trim(),
+                    Content = editViewModel.Content.Trim(),
+                    UserId = editViewModel.UserId,
+                };
+
+                await _postService.UpdatePostAsync(post);
+
+                return RedirectToAction(nameof(Index));
+            }
+            catch (InvalidDataException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
+            }
+            catch (ArgumentException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
+            }
+            catch (Exception)
+            {
+                ModelState.AddModelError("", "Failed to update the post.");
+            }
+
+            return View(editViewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteConfirmed(int id = 0)
+        {
+            bool isSuccess = false;
+            string message;
+
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    throw new InvalidDataException("Error deleting post");
+                }
+
+                if (id == 0) throw new InvalidDataException("Invalid post found");
+
+                var postToDelete = await _postService.GetPostByIdAsync(id) ?? throw new InvalidDataException("Invalid post found");
+
+                await _postService.DeletePostAsync(id);
+
+                isSuccess = true;
+                message = "Post successfully deleted";
+            }
+            catch (InvalidDataException ex)
+            {
+                message = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+            }
+
+            return Json(new { isSuccess, message });
         }
     }
 }

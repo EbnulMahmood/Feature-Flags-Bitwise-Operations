@@ -265,7 +265,7 @@
             const configOptions = {};
 
             for (const [key, id] of Object.entries(options)) {
-                const value = $(id).val();
+                const value = $(id).val() ?? '';
                 configOptions[key] = value.trim();
             }
 

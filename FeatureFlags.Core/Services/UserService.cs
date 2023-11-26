@@ -10,6 +10,7 @@ namespace FeatureFlags.Core.Services
         Task DeleteUserAsync(int userId);
         Task<UserDto?> GetUserByIdAsync(int userId);
         Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, CancellationToken token = default);
+        Task<object> ListUserDropdownAsync(string name, int page, int resultCount);
         Task UpdateUserAsync(User user);
     }
 
@@ -32,6 +33,30 @@ namespace FeatureFlags.Core.Services
                 }
 
                 return await _userRepository.LoadUsersAsync(start, length, flag);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public async Task<object> ListUserDropdownAsync(string name, int page, int resultCount)
+        {
+            try
+            {
+                (var userDropdownDtoList, bool morePages) = await _userRepository.ListUserDropdownAsync(name, page, resultCount);
+
+                UserDropdown[] results = userDropdownDtoList?
+                    .Select(x => new UserDropdown
+                    {
+                        Id = x.Id,
+                        Text = x.Text,
+                    })?
+                    .ToArray() ?? [];
+
+                var pagination = new { more = morePages };
+
+                return new { results, pagination };
             }
             catch (Exception)
             {

@@ -9,7 +9,7 @@ namespace FeatureFlags.Core.Services
         Task CreatePostAsync(Post post);
         Task DeletePostAsync(int postId);
         Task<PostDto?> GetPostByIdAsync(int postId);
-        Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length);
+        Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0, CancellationToken token = default);
         Task UpdatePostAsync(Post post);
     }
 
@@ -17,11 +17,21 @@ namespace FeatureFlags.Core.Services
     {
         private readonly IPostRepository _postRepository = postRepository ?? throw new ArgumentNullException(nameof(postRepository));
 
-        public async Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length)
+        public async Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0, CancellationToken token = default)
         {
             try
             {
-                return await _postRepository.LoadPostsAsync(start, length);
+                if (token.IsCancellationRequested == true)
+                {
+                    throw new OperationCanceledException(token);
+                }
+
+                if (length < 0)
+                {
+                    throw new InvalidDataException("Page Size is less than zero");
+                }
+
+                return await _postRepository.LoadPostsAsync(start, length, keyword, userId);
             }
             catch (Exception)
             {
@@ -45,6 +55,8 @@ namespace FeatureFlags.Core.Services
         {
             try
             {
+                await ValidatePostDataAsync(post.Title, post.Content, post.UserId);
+
                 await _postRepository.CreatePostAsync(post);
             }
             catch (Exception)
@@ -57,11 +69,57 @@ namespace FeatureFlags.Core.Services
         {
             try
             {
+                await ValidatePostDataAsync(post.Title, post.Content, post.UserId, post.Id);
+
                 await _postRepository.UpdatePostAsync(post);
             }
             catch (Exception)
             {
                 throw;
+            }
+        }
+
+        private async Task ValidatePostDataAsync(string title, string content, int userId, int postId = 0)
+        {
+            ValidateTitle(title);
+            ValidateTitleLength(title);
+            ValidateContent(content);
+            await ValidateUniqueTitlePerUserAsync(title, userId, postId);
+        }
+
+        private static void ValidateTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                throw new ArgumentException("Title cannot be empty.");
+            }
+        }
+
+        private static void ValidateTitleLength(string title)
+        {
+            const int maxLength = 100;
+
+            if (title.Length > maxLength)
+            {
+                throw new ArgumentException($"Title cannot exceed {maxLength} characters.");
+            }
+        }
+
+        private static void ValidateContent(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                throw new ArgumentException("Content cannot be empty.");
+            }
+        }
+
+        private async Task ValidateUniqueTitlePerUserAsync(string title, int userId, int postId = 0)
+        {
+            var existingPost = await _postRepository.GetPostByTitleAndUserIdAsync(title, userId, postId);
+
+            if (existingPost != null)
+            {
+                throw new ArgumentException("A post with the same title already exists for this user.");
             }
         }
 

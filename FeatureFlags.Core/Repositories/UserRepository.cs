@@ -11,6 +11,7 @@ namespace FeatureFlags.Core.Repositories
         Task DeleteUserAsync(int userId);
         Task<UserDto?> GetUserByIdAsync(int userId);
         Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null);
+        Task<(IEnumerable<UserDropdownDto>?, bool)> ListUserDropdownAsync(string name, int page, int resultCount);
         Task UpdateUserAsync(User user);
         Task<User?> GetUserByUsernameOrEmailAsync(string username, string email, int userIdToExclude = 0);
     }
@@ -31,7 +32,7 @@ namespace FeatureFlags.Core.Repositories
                 }
                 else
                 {
-                    conditionQuery += $"AND (Flags & {flag}) = {flag}";
+                    conditionQuery += $"AND (Flags & @flag) = @flag";
                 }
             }
 
@@ -48,14 +49,42 @@ FROM Users
 WHERE 1=1
 {conditionQuery}
 ORDER BY CreatedAt DESC
+OFFSET @start ROWS FETCH NEXT @length ROWS ONLY
 ";
 
-            if (length > 0)
+            return await _dbConnection.QueryAsync<UserDto>(query, new { flag, start, length });
+        }
+
+        public async Task<(IEnumerable<UserDropdownDto>?, bool)> ListUserDropdownAsync(string name, int page, int resultCount)
+        {
+            int offset = (page - 1) * resultCount;
+
+            string conditionQuery = string.Empty;
+            object param = new { offset, resultCount };
+
+            if (!string.IsNullOrWhiteSpace(name))
             {
-                query += $" OFFSET {start} ROWS FETCH NEXT {length} ROWS ONLY";
+                conditionQuery += $"AND Username LIKE @name";
+                param = new { offset, resultCount, name = $"%{name.Trim()}%" };
             }
 
-            return await _dbConnection.QueryAsync<UserDto>(query);
+            string sql = $@"
+SELECT
+    Id,
+    Username AS Text,
+    COUNT(*) OVER() AS DataCount
+FROM Users
+WHERE 1=1
+{conditionQuery}
+ORDER BY CreatedAt DESC
+OFFSET @offset ROWS FETCH NEXT @resultCount ROWS ONLY
+";
+            var UserDropdownDtoList = await _dbConnection.QueryAsync<UserDropdownDto>(sql, param);
+
+            int endCount = offset + resultCount;
+            bool morePages = endCount < UserDropdownDtoList?.FirstOrDefault()?.DataCount;
+
+            return (UserDropdownDtoList, morePages);
         }
 
         public async Task<UserDto?> GetUserByIdAsync(int userId)

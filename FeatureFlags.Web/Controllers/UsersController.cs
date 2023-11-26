@@ -46,7 +46,7 @@ namespace FeatureFlags.Web.Controllers
 
                     var row = new List<string>
                     {
-                        (sl++).ToString(),
+                        sl++.ToString(),
                         item.Username,
                         item.Email,
                         item.CreatedAt.ToString("MMM dd, yyyy hh:mm:ss tt"),
@@ -114,13 +114,14 @@ namespace FeatureFlags.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(UserCreateViewModel userViewModel)
         {
-            if (!ModelState.IsValid)
-            {
-                return View(userViewModel);
-            }
 
             try
             {
+                if (!ModelState.IsValid)
+                {
+                    throw new InvalidDataException("Invalid data found");
+                }
+
                 var combinedFlags = UserFlagsHelper.GetCombinedFlags(userViewModel.Flags);
 
                 var user = new User
@@ -133,6 +134,10 @@ namespace FeatureFlags.Web.Controllers
                 await _userService.CreateUserAsync(user);
 
                 return RedirectToAction(nameof(Index));
+            }
+            catch (InvalidDataException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
             }
             catch (ArgumentNullException ex)
             {
@@ -278,42 +283,45 @@ namespace FeatureFlags.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
+            var editViewModel = new UserEditViewModel { Username = string.Empty, Email = string.Empty };
+
             try
             {
-                var user = await _userService.GetUserByIdAsync(id);
-                if (user == null)
-                    return NotFound();
+                var user = await _userService.GetUserByIdAsync(id) ?? throw new InvalidDataException("Invalid user");
 
-                var editViewModel = new UserEditViewModel
-                {
-                    Id = user.Id,
-                    Username = user.Username,
-                    Email = user.Email,
-                    Flags = (UserFlags)(user.Flags ?? (int)UserFlags.None)
-                };
-
-                return View(editViewModel);
+                editViewModel.Id = user.Id;
+                editViewModel.Username = user.Username;
+                editViewModel.Email = user.Email;
+                editViewModel.Flags = (UserFlags)(user.Flags ?? (int)UserFlags.None);
+            }
+            catch (InvalidDataException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
             }
             catch (Exception)
             {
-                return View("Error");
+                ModelState.AddModelError("", "Invalid user.");
             }
+
+            return View(editViewModel);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, UserEditViewModel userViewModel)
         {
-            if (id != userViewModel.Id)
-                return BadRequest("User ID in the request body doesn't match the route parameter.");
-
-            if (!ModelState.IsValid)
-            {
-                return View(userViewModel);
-            }
-
             try
             {
+                if (!ModelState.IsValid)
+                {
+                    throw new InvalidDataException("Invalid data found");
+                }
+
+                if (id != userViewModel.Id)
+                {
+                    throw new InvalidDataException("User ID in the request body doesn't match the route parameter.");
+                }
+
                 var combinedFlags = UserFlagsHelper.GetCombinedFlags(userViewModel.Flags);
 
                 var user = new User
@@ -327,6 +335,10 @@ namespace FeatureFlags.Web.Controllers
                 await _userService.UpdateUserAsync(user);
 
                 return RedirectToAction(nameof(Index));
+            }
+            catch (InvalidDataException ex)
+            {
+                ModelState.AddModelError("", $"Error: {ex.Message}");
             }
             catch (ArgumentNullException ex)
             {
@@ -346,7 +358,7 @@ namespace FeatureFlags.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<JsonResult> DeleteConfirmed(int id)
+        public async Task<JsonResult> DeleteConfirmed(int id = 0)
         {
             bool isSuccess = false;
             string message;
@@ -357,6 +369,8 @@ namespace FeatureFlags.Web.Controllers
                 {
                     throw new InvalidDataException("Error deleting user");
                 }
+
+                if (id == 0) throw new InvalidDataException("Invalid user found");
 
                 var userToDelete = await _userService.GetUserByIdAsync(id) ?? throw new InvalidDataException("Invalid user found");
 
