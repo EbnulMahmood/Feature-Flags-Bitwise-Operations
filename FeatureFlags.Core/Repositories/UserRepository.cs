@@ -10,7 +10,7 @@ namespace FeatureFlags.Core.Repositories
         Task CreateUserAsync(User user);
         Task DeleteUserAsync(int userId);
         Task<UserDto?> GetUserByIdAsync(int userId);
-        Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null);
+        Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, long? viewsMin = null, long? viewsMax = null);
         Task<(IEnumerable<UserDropdownDto>?, bool)> ListUserDropdownAsync(string name, int page, int resultCount);
         Task UpdateUserAsync(User user);
         Task<User?> GetUserByUsernameOrEmailAsync(string username, string email, int userIdToExclude = 0);
@@ -20,39 +20,71 @@ namespace FeatureFlags.Core.Repositories
     {
         private readonly IDbConnection _dbConnection = dbConnection;
 
-        public async Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null)
+        public async Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, long? viewsMin = null, long? viewsMax = null)
         {
             string conditionQuery = string.Empty;
+            string postSubQuery = string.Empty;
+            var parameters = new DynamicParameters();
 
             if (flag != null)
             {
                 if (flag == 0)
                 {
-                    conditionQuery += $"AND Flags = 0";
+                    conditionQuery += $"AND u.Flags = 0";
                 }
                 else
                 {
-                    conditionQuery += $"AND (Flags & @flag) = @flag";
+                    conditionQuery += $"AND (u.Flags & @{nameof(flag)}) = @{nameof(flag)}";
+                    parameters.Add($"@{nameof(flag)}", flag, dbType: DbType.Int32);
                 }
+            }
+
+            if (viewsMin.HasValue || viewsMax.HasValue)
+            {
+                if (viewsMin.HasValue)
+                {
+                    postSubQuery += $"AND p.Views >= @{nameof(viewsMin)} ";
+                    parameters.Add($"@{nameof(viewsMin)}", viewsMin, dbType: DbType.Int64);
+                }
+
+                if (viewsMax.HasValue)
+                {
+                    postSubQuery += $"AND p.Views <= @{nameof(viewsMax)} ";
+                    parameters.Add($"@{nameof(viewsMax)}", viewsMax, dbType: DbType.Int64);
+                }
+
+                postSubQuery = $@"
+AND EXISTS (
+    SELECT 
+        UserId 
+    FROM Posts AS p 
+    WHERE 1=1 
+    {postSubQuery}
+    AND u.Id = p.UserId
+)
+";
             }
 
             string query = $@"
 SELECT 
-    Id,
-    Username,
-	Email,
-	CreatedAt,
-	ModifiedAt,
-	Flags,
+    u.Id,
+    u.Username,
+	u.Email,
+	u.CreatedAt,
+	u.ModifiedAt,
+	u.Flags,
 	COUNT(*) OVER() AS DataCount
-FROM Users
+FROM Users AS u
 WHERE 1=1
 {conditionQuery}
-ORDER BY CreatedAt DESC
+{postSubQuery}
+ORDER BY u.CreatedAt DESC
 OFFSET @start ROWS FETCH NEXT @length ROWS ONLY
 ";
+            parameters.Add($"@{nameof(start)}", start, dbType: DbType.Int32);
+            parameters.Add($"@{nameof(length)}", length, dbType: DbType.Int32);
 
-            return await _dbConnection.QueryAsync<UserDto>(query, new { flag, start, length });
+            return await _dbConnection.QueryAsync<UserDto>(query, parameters);
         }
 
         public async Task<(IEnumerable<UserDropdownDto>?, bool)> ListUserDropdownAsync(string name, int page, int resultCount)
@@ -60,13 +92,16 @@ OFFSET @start ROWS FETCH NEXT @length ROWS ONLY
             int offset = (page - 1) * resultCount;
 
             string conditionQuery = string.Empty;
-            object param = new { offset, resultCount };
+            var parameters = new DynamicParameters();
 
             if (!string.IsNullOrWhiteSpace(name))
             {
-                conditionQuery += $"AND Username LIKE @name";
-                param = new { offset, resultCount, name = $"%{name.Trim()}%" };
+                conditionQuery += $"AND Username LIKE @{nameof(name)}";
+                parameters.Add($"@{nameof(name)}", $"%{name.Trim()}%", dbType: DbType.String);
             }
+
+            parameters.Add($"@{nameof(offset)}", offset, dbType: DbType.Int32);
+            parameters.Add($"@{nameof(resultCount)}", resultCount, dbType: DbType.Int32);
 
             string sql = $@"
 SELECT
@@ -79,7 +114,7 @@ WHERE 1=1
 ORDER BY CreatedAt DESC
 OFFSET @offset ROWS FETCH NEXT @resultCount ROWS ONLY
 ";
-            var UserDropdownDtoList = await _dbConnection.QueryAsync<UserDropdownDto>(sql, param);
+            var UserDropdownDtoList = await _dbConnection.QueryAsync<UserDropdownDto>(sql, parameters);
 
             int endCount = offset + resultCount;
             bool morePages = endCount < UserDropdownDtoList?.FirstOrDefault()?.DataCount;
@@ -167,22 +202,25 @@ OFFSET @offset ROWS FETCH NEXT @resultCount ROWS ONLY
         public async Task<User?> GetUserByUsernameOrEmailAsync(string username, string email, int userIdToExclude = 0)
         {
             string conditionQuery = string.Empty;
-            object param = new { username, email };
+            var parameters = new DynamicParameters();
 
             if (userIdToExclude != 0)
             {
-                conditionQuery += "AND Id != @userIdToExclude";
-                param = new { username, email, userIdToExclude };
+                conditionQuery += $"AND Id != @{nameof(userIdToExclude)}";
+                parameters.Add($"@{nameof(userIdToExclude)}", userIdToExclude, dbType: DbType.UInt32);
             }
+
+            parameters.Add($"@{nameof(username)}", username , dbType: DbType.String);
+            parameters.Add($"@{nameof(email)}", email, dbType: DbType.String);
 
             string query = $@"
 SELECT 
 * 
 FROM Users 
-WHERE (Username = @username OR Email = @email) 
+WHERE (Username = @{nameof(username)} OR Email = @{nameof(email)}) 
 {conditionQuery}";
 
-            return await _dbConnection.QueryFirstOrDefaultAsync<User>(query, param);
+            return await _dbConnection.QueryFirstOrDefaultAsync<User>(query, parameters);
         }
     }
 }

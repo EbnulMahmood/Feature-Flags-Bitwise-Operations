@@ -35,6 +35,14 @@ namespace FeatureFlags.Core.Services
 
                 return await _postRepository.LoadPostsAsync(start, length, keyword, userId);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidDataException)
+            {
+                throw;
+            }
             catch (Exception)
             {
                 throw;
@@ -61,6 +69,10 @@ namespace FeatureFlags.Core.Services
 
                 await _postRepository.CreatePostAsync(post);
             }
+            catch (ArgumentException)
+            {
+                throw;
+            }
             catch (Exception)
             {
                 throw;
@@ -74,6 +86,10 @@ namespace FeatureFlags.Core.Services
                 await ValidatePostDataAsync(post.Title, post.Content, post.UserId, post.Id);
 
                 await _postRepository.UpdatePostAsync(post);
+            }
+            catch (ArgumentException)
+            {
+                throw;
             }
             catch (Exception)
             {

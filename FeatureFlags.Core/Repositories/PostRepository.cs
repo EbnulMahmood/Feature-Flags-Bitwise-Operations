@@ -2,7 +2,6 @@
 using FeatureFlags.Core.Dtos;
 using FeatureFlags.Core.Entities;
 using System.Data;
-using System.Data.Common;
 
 namespace FeatureFlags.Core.Repositories
 {
@@ -24,44 +23,42 @@ namespace FeatureFlags.Core.Repositories
 
         public async Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0)
         {
-            var queryParams = new
-            {
-                start,
-                length,
-                keyword = string.IsNullOrWhiteSpace(keyword) ? null : $"%{keyword.Trim()}%",
-                userId
-            };
+            var parameters = new DynamicParameters();
+            string conditionQuery = string.Empty;
 
-            List<string> conditions = [];
-
-            if (!string.IsNullOrWhiteSpace(queryParams.keyword))
+            if (!string.IsNullOrWhiteSpace(keyword))
             {
-                conditions.Add("(p.Title LIKE @keyword OR p.Content LIKE @keyword)");
+                conditionQuery += $"AND (p.Title LIKE @{nameof(keyword)} OR p.Content LIKE @{nameof(keyword)})";
+                parameters.Add($"@{nameof(keyword)}", $"%{keyword.Trim()}%", dbType: DbType.String);
             }
 
-            if (queryParams.userId != 0)
+            if (userId != 0)
             {
-                conditions.Add("u.Id = @userId");
+                conditionQuery += $"AND u.Id = @{nameof(userId)}";
+                parameters.Add($"@{nameof(userId)}", userId, dbType: DbType.Int32);
             }
-
-            string conditionQuery = conditions.Count > 0 ? "WHERE " + string.Join(" AND ", conditions) : "";
 
             string query = $@"
 SELECT 
     p.Id,
     p.Title,
     p.Content,
+    p.Views,
     u.UserName,
     p.CreatedAt,
     p.ModifiedAt,
     COUNT(*) OVER() AS DataCount
 FROM Posts AS p
 JOIN Users AS u ON u.Id = p.UserId
+WHERE 1=1
 {conditionQuery}
 ORDER BY p.CreatedAt DESC
-OFFSET @start ROWS FETCH NEXT @length ROWS ONLY";
+OFFSET @{nameof(start)} ROWS FETCH NEXT @{nameof(length)} ROWS ONLY";
 
-            return await _dbConnection.QueryAsync<PostDto>(query, queryParams);
+            parameters.Add($"@{nameof(start)}", start, dbType: DbType.Int32);
+            parameters.Add($"@{nameof(length)}", length, dbType: DbType.Int32);
+
+            return await _dbConnection.QueryAsync<PostDto>(query, parameters);
         }
 
         public async Task<PostDto?> GetPostByIdAsync(int postId)
@@ -71,8 +68,8 @@ OFFSET @start ROWS FETCH NEXT @length ROWS ONLY";
 
         public async Task CreatePostAsync(Post post)
         {
-            const string insertSql = @"INSERT INTO Posts (Title, Content, UserId, CreatedAt, ModifiedAt) 
-                               VALUES (@Title, @Content, @UserId, GETUTCDATE(), GETUTCDATE())";
+            const string insertSql = @"INSERT INTO Posts (Title, Content, Views, UserId, CreatedAt, ModifiedAt) 
+                               VALUES (@Title, @Content, ABS(CHECKSUM(NEWID())) % 100001, @UserId, GETUTCDATE(), GETUTCDATE())";
 
             if (_dbConnection.State != ConnectionState.Open)
             {
@@ -144,23 +141,26 @@ OFFSET @start ROWS FETCH NEXT @length ROWS ONLY";
         public async Task<Post?> GetPostByTitleAndUserIdAsync(string title, int userId, int postId = 0)
         {
             string conditionQuery = string.Empty;
-            object param = new { Title = title, UserId = userId };
+            var parameters = new DynamicParameters();
 
             if (postId != 0)
             {
-                conditionQuery += "AND Id != @PostId";
-                param = new { Title = title, UserId = userId, PostId = postId };
+                conditionQuery += $"AND Id != @{nameof(postId)}";
+                parameters.Add($"@{nameof(postId)}", postId, dbType: DbType.Int32);
             }
+
+            parameters.Add($"@{nameof(title)}", title, dbType: DbType.String);
+            parameters.Add($"@{nameof(userId)}", userId, dbType: DbType.Int32);
 
             string sql = $@"
 SELECT 
-*
+    *
 FROM Posts
-WHERE Title = @Title 
-AND UserId = @UserId 
+WHERE Title = @{nameof(title)} 
+AND UserId = @{nameof(userId)} 
 {conditionQuery}";
 
-            return await _dbConnection.QueryFirstOrDefaultAsync<Post>(sql, param);
+            return await _dbConnection.QueryFirstOrDefaultAsync<Post>(sql, parameters);
         }
 
         public async Task<int> GetRandomUserIdAsync()

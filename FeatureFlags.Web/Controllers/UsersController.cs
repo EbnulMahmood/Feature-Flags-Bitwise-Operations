@@ -22,7 +22,7 @@ namespace FeatureFlags.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<JsonResult> UsersDatatable(int draw, int start, int length, int? flag = null, CancellationToken token = default)
+        public async Task<JsonResult> UsersDatatable(int draw, int start, int length, int? flag = null, long? viewsMin = null, long? viewsMax = null, CancellationToken token = default)
         {
             List<List<string>> data = [];
             int recordsTotal = 0;
@@ -34,7 +34,7 @@ namespace FeatureFlags.Web.Controllers
             {
                 length = length <= 0 ? Constants.datatablePageSize : length;
 
-                IEnumerable<UserDto> userList = await _userService.LoadUsersAsync(start, length, flag, token) ?? [];
+                IEnumerable<UserDto> userList = await _userService.LoadUsersAsync(start, length, flag, viewsMin, viewsMax, token) ?? [];
                 recordsTotal = userList.FirstOrDefault()?.DataCount ?? 0;
                 recordsFiltered = recordsTotal;
 

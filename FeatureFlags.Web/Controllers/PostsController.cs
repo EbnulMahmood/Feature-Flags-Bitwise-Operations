@@ -47,6 +47,7 @@ namespace FeatureFlags.Web.Controllers
                         sl++.ToString(),
                         item.Title,
                         item.Content,
+                        item.Views.ToString(),
                         item.UserName,
                         item.CreatedAt.ToString("MMM dd, yyyy hh:mm:ss tt"),
                         item.ModifiedAt?.ToString("MMM dd, yyyy hh:mm:ss tt") ?? "-",
@@ -173,7 +174,7 @@ namespace FeatureFlags.Web.Controllers
                         UserId = GetRandomUserId(),
                     });
 
-                for (int i = 0; i < 50000; i++)
+                for (int i = 0; i < 10000; i++)
                 {
                     var post = faker.Generate();
 

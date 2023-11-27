@@ -9,7 +9,7 @@ namespace FeatureFlags.Core.Services
         Task CreateUserAsync(User user);
         Task DeleteUserAsync(int userId);
         Task<UserDto?> GetUserByIdAsync(int userId);
-        Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, CancellationToken token = default);
+        Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, long? viewsMin = null, long? viewsMax = null, CancellationToken token = default);
         Task<object> ListUserDropdownAsync(string name, int page, int resultCount);
         Task UpdateUserAsync(User user);
     }
@@ -18,7 +18,7 @@ namespace FeatureFlags.Core.Services
     {
         private readonly IUserRepository _userRepository = userRepository;
 
-        public async Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, CancellationToken token = default)
+        public async Task<IEnumerable<UserDto>> LoadUsersAsync(int start, int length, int? flag = null, long? viewsMin = null, long? viewsMax = null, CancellationToken token = default)
         {
             try
             {
@@ -32,7 +32,17 @@ namespace FeatureFlags.Core.Services
                     throw new InvalidDataException("Page Size is less than zero");
                 }
 
-                return await _userRepository.LoadUsersAsync(start, length, flag);
+                ValidateViews(viewsMin, viewsMax);
+
+                return await _userRepository.LoadUsersAsync(start, length, flag, viewsMin, viewsMax);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidDataException)
+            {
+                throw;
             }
             catch (Exception)
             {
@@ -84,6 +94,10 @@ namespace FeatureFlags.Core.Services
 
                 await _userRepository.CreateUserAsync(user);
             }
+            catch (ArgumentException)
+            {
+                throw;
+            }
             catch (Exception)
             {
                 throw;
@@ -97,6 +111,10 @@ namespace FeatureFlags.Core.Services
                 await ValidateUserDataAsync(user.Username, user.Email, user.Id);
 
                 await _userRepository.UpdateUserAsync(user);
+            }
+            catch (ArgumentException)
+            {
+                throw;
             }
             catch (Exception)
             {
@@ -152,6 +170,19 @@ namespace FeatureFlags.Core.Services
             if (existingUser != null)
             {
                 throw new ArgumentException("User with the same Username or Email already exists.");
+            }
+        }
+
+        private static void ValidateViews(long? viewsMin = null, long? viewsMax = null)
+        {
+            if (viewsMin < 0 || viewsMax < 0)
+            {
+                throw new InvalidDataException("Views must be non-negative values");
+            }
+
+            if (viewsMin.HasValue && viewsMax.HasValue && viewsMin > viewsMax)
+            {
+                throw new InvalidDataException("Minimum views should be less than maximum views");
             }
         }
 
