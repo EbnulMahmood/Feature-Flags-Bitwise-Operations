@@ -42,14 +42,18 @@
         height: 34px !important;
     }
 
+    .select2-selection__clear {
+        margin-top: 3px;
+    }
+
     .user-link {
         color: #0366d6;
         text-decoration: none;
     }
 
-    .user-link:hover {
-        text-decoration: underline;
-    }
+        .user-link:hover {
+            text-decoration: underline;
+        }
 </style>
 
 <h1 class="display-6 fw-bold mb-4">Manage</h1>
@@ -86,12 +90,12 @@
     <thead>
         <tr>
             <th>Serial</th>
-            <th>Title</th>
-            <th>Content</th>
+            <th style="min-width:80px;">Title</th>
+            <th style="min-width:380px;">Content</th>
             <th>Views</th>
             <th>User</th>
-            <th>Created At</th>
-            <th>Modifie At</th>
+            <th style="min-width:100px;">Created At</th>
+            <th style="min-width:100px;">Modifie At</th>
             <th style="min-width:120px;">Action</th>
         </tr>
     </thead>
@@ -129,16 +133,6 @@
                         }
                     },
                     cache: true
-                },
-                processResults: function (data) {
-                    return {
-                        results: $.map(data, function (item) {
-                            return {
-                                text: item.text,
-                                id: item.id,
-                            }
-                        })
-                    }
                 }
             });
 

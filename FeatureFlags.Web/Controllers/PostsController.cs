@@ -114,113 +114,31 @@ namespace FeatureFlags.Web.Controllers
             return View(postViewModel);
         }
 
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<IActionResult> Create(PostCreateViewModel postViewModel)
-        //{
-        //    try
-        //    {
-        //        if (!ModelState.IsValid)
-        //        {
-        //            throw new InvalidDataException("Invalid data found");
-        //        }
-
-        //        if (postViewModel.UserId == 0) throw new InvalidDataException("Invalid User found");
-
-        //        var post = new Post
-        //        {
-        //            Title = postViewModel.Title.Trim(),
-        //            Content = postViewModel.Content.Trim(),
-        //            UserId = postViewModel.UserId
-        //        };
-
-        //        await _postService.CreatePostAsync(post);
-
-        //        return RedirectToAction(nameof(Index));
-        //    }
-        //    catch (InvalidDataException ex)
-        //    {
-        //        ModelState.AddModelError("", $"Error: {ex.Message}");
-        //    }
-        //    catch (ArgumentException ex)
-        //    {
-        //        ModelState.AddModelError("", $"Error: {ex.Message}");
-        //    }
-        //    catch (Exception)
-        //    {
-        //        ModelState.AddModelError("", "Failed to create the post.");
-        //    }
-
-        //    return View(postViewModel);
-        //}
-
-        #region Seed Data Code
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(PostCreateViewModel postViewModel)
         {
-            if (!ModelState.IsValid)
-            {
-                return View(postViewModel);
-            }
-
             try
             {
-                List<string> generatedTitles = [];
-                List<Post> postList = [];
-
-                var faker = new Faker<Post>()
-                    .CustomInstantiator(f => new Post
-                    {
-                        Title = GetUniqueTitle(f),
-                        Content = GetRandomContent(f),
-                        UserId = GetRandomUserId(),
-                    });
-
-                for (int i = 0; i < 10000; i++)
+                if (!ModelState.IsValid)
                 {
-                    var post = faker.Generate();
-
-                    // Store the generated title to ensure uniqueness
-                    generatedTitles.Add(post.Title);
-
-                    // Add the generated post to the list
-                    postList.Add(post);
+                    throw new InvalidDataException("Invalid data found");
                 }
 
-                string GetUniqueTitle(Faker faker)
-                {
-                    string title;
-                    do
-                    {
-                        title = faker.Lorem.Sentence();
-                        if (title.Length > 100)
-                        {
-                            title = title[..100];
-                        }
-                    }
-                    while (_postService.TitleExistsAsync(title).Result);
-                    return title.Trim();
-                }
+                if (postViewModel.UserId == 0) throw new InvalidDataException("Invalid User found");
 
-                string GetRandomContent(Faker faker)
+                var post = new Post
                 {
-                    return faker.Lorem.Paragraph().Trim();
-                }
+                    Title = postViewModel.Title.Trim(),
+                    Content = postViewModel.Content.Trim(),
+                    UserId = postViewModel.UserId
+                };
 
-                int GetRandomUserId()
-                {
-                    return _postService.GetRandomUserIdAsync().Result;
-                }
-
-                foreach (var post in postList)
-                {
-                    await _postService.CreatePostAsync(post);
-                }
+                await _postService.CreatePostAsync(post);
 
                 return RedirectToAction(nameof(Index));
             }
-            catch (ArgumentNullException ex)
+            catch (InvalidDataException ex)
             {
                 ModelState.AddModelError("", $"Error: {ex.Message}");
             }
@@ -235,6 +153,88 @@ namespace FeatureFlags.Web.Controllers
 
             return View(postViewModel);
         }
+
+        #region Seed Data Code
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<IActionResult> Create(PostCreateViewModel postViewModel)
+        //{
+        //    if (!ModelState.IsValid)
+        //    {
+        //        return View(postViewModel);
+        //    }
+
+        //    try
+        //    {
+        //        List<string> generatedTitles = [];
+        //        List<Post> postList = [];
+
+        //        var faker = new Faker<Post>()
+        //            .CustomInstantiator(f => new Post
+        //            {
+        //                Title = GetUniqueTitle(f),
+        //                Content = GetRandomContent(f),
+        //                UserId = GetRandomUserId(),
+        //            });
+
+        //        for (int i = 0; i < 10000; i++)
+        //        {
+        //            var post = faker.Generate();
+
+        //            // Store the generated title to ensure uniqueness
+        //            generatedTitles.Add(post.Title);
+
+        //            // Add the generated post to the list
+        //            postList.Add(post);
+        //        }
+
+        //        string GetUniqueTitle(Faker faker)
+        //        {
+        //            string title;
+        //            do
+        //            {
+        //                title = faker.Lorem.Sentence();
+        //                if (title.Length > 100)
+        //                {
+        //                    title = title[..100];
+        //                }
+        //            }
+        //            while (_postService.TitleExistsAsync(title).Result);
+        //            return title.Trim();
+        //        }
+
+        //        string GetRandomContent(Faker faker)
+        //        {
+        //            return faker.Lorem.Paragraph().Trim();
+        //        }
+
+        //        int GetRandomUserId()
+        //        {
+        //            return _postService.GetRandomUserIdAsync().Result;
+        //        }
+
+        //        foreach (var post in postList)
+        //        {
+        //            await _postService.CreatePostAsync(post);
+        //        }
+
+        //        return RedirectToAction(nameof(Index));
+        //    }
+        //    catch (ArgumentNullException ex)
+        //    {
+        //        ModelState.AddModelError("", $"Error: {ex.Message}");
+        //    }
+        //    catch (ArgumentException ex)
+        //    {
+        //        ModelState.AddModelError("", $"Error: {ex.Message}");
+        //    }
+        //    catch (Exception)
+        //    {
+        //        ModelState.AddModelError("", "Failed to create the post.");
+        //    }
+
+        //    return View(postViewModel);
+        //}
         #endregion
 
         [HttpGet]

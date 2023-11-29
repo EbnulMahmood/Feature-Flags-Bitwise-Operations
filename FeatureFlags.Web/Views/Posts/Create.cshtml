@@ -18,6 +18,10 @@
     .select2-selection__arrow {
         height: 34px !important;
     }
+
+    .select2-selection__clear {
+        margin-top: 3px;
+    }
 </style>
 
 <h1 class="display-6 fw-bold mb-4">Create</h1>
@@ -82,16 +86,6 @@
                         }
                     },
                     cache: true
-                },
-                processResults: function (data) {
-                    return {
-                        results: $.map(data, function (item) {
-                            return {
-                                text: item.text,
-                                id: item.id,
-                            }
-                        })
-                    }
                 }
             });
         });
