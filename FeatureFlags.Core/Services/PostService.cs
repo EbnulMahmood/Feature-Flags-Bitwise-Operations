@@ -9,7 +9,7 @@ namespace FeatureFlags.Core.Services
         Task CreatePostAsync(Post post);
         Task DeletePostAsync(int postId);
         Task<PostDto?> GetPostByIdAsync(int postId);
-        Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0, CancellationToken token = default);
+        Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0, int combinedFlags = 0, CancellationToken token = default);
         Task UpdatePostAsync(Post post);
         Task<int> GetRandomUserIdAsync();
         Task<bool> TitleExistsAsync(string title);
@@ -19,7 +19,7 @@ namespace FeatureFlags.Core.Services
     {
         private readonly IPostRepository _postRepository = postRepository ?? throw new ArgumentNullException(nameof(postRepository));
 
-        public async Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0, CancellationToken token = default)
+        public async Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0, int combinedFlags = 0, CancellationToken token = default)
         {
             try
             {
@@ -33,7 +33,7 @@ namespace FeatureFlags.Core.Services
                     throw new InvalidDataException("Page Size is less than zero");
                 }
 
-                return await _postRepository.LoadPostsAsync(start, length, keyword, userId);
+                return await _postRepository.LoadPostsAsync(start, length, keyword, userId, combinedFlags);
             }
             catch (OperationCanceledException)
             {

@@ -1,6 +1,7 @@
 ﻿@using FeatureFlags.Core.Helpers
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
 @model IEnumerable<FeatureFlags.Core.Dtos.PostDto>
+@addTagHelper *, FeatureFlags.Core
 
 @{
     ViewData["Title"] = "Manage";
@@ -61,6 +62,12 @@
         <div class="d-flex justify-content-md-end">
             <a asp-action="Create" class="btn btn-success">Add New</a>
         </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        <enum-checkboxes for="Flags" col="4"></enum-checkboxes>
     </div>
 </div>
 
@@ -202,9 +209,9 @@
 
         const getAlertMessage = (textStatus, message) => {
             return `<div class="alert alert-${textStatus} alert-dismissible fade show" role="alert">
-                                                        <strong>${message}!</strong>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                                    </div>`;
+                        <strong>${message}!</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>`;
         }
 
         const initializeDataTable = () => {
@@ -217,13 +224,23 @@
                 userId: '#UserId',
             };
 
+            const selectedValues = [];
+
+            $('#checkboxContainer input[type=checkbox]:checked').each(function () {
+                selectedValues.push($(this).val());
+            });
+
+            let keyValueSearchOptions = {};
+            keyValueSearchOptions['flags'] = selectedValues;
+
             dataTableRender({
                 tableId: dataTableId,
                 url: url,
                 pageSize: pageSize,
                 csrfToken: csrfToken,
                 searchOptions: searchOptions,
-                setScrollY: '50vh',
+                keyValueSearchOptions: keyValueSearchOptions,
+                setScrollY: '45vh',
             });
         };
 
@@ -259,7 +276,7 @@
             $(className).append(errorMessage);
         }
 
-        const dataTableRender = ({ tableId, url, pageSize, csrfToken = '', searchOptions = {}, setScrollY = false, fixedColumsList = false } = {}) => {
+        const dataTableRender = ({ tableId, url, pageSize, csrfToken = '', searchOptions = {}, keyValueSearchOptions = {}, setScrollY = false, fixedColumsList = false } = {}) => {
 
             try {
                 const displayLength = pageSizeValidation(pageSize);
@@ -284,7 +301,7 @@
                         async: true,
                         headers: getRequestHeader(csrfToken),
                         data: (data) => {
-                            return $.extend({}, data, options)
+                            return $.extend({}, data, { ...options, ...keyValueSearchOptions })
                         },
                         dataSrc: function (json) {
                             if (json.isSuccess === false) {

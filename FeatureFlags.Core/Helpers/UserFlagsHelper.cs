@@ -17,6 +17,16 @@ namespace FeatureFlags.Core.Helper
             return flags.Aggregate(0, (current, flag) => current | (int)flag);
         }
 
+        public static int GetCombinedFlags(List<int>? flags)
+        {
+            if (flags == null)
+            {
+                return 0;
+            }
+
+            return flags.Aggregate(0, (current, flag) => current | flag);
+        }
+
         public static IEnumerable<string> GetIndividualFlags(int? combinedFlags)
         {
             if (!combinedFlags.HasValue || combinedFlags.Value == 0)

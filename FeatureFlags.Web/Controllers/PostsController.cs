@@ -1,10 +1,12 @@
 ﻿using Bogus;
 using FeatureFlags.Core.Dtos;
 using FeatureFlags.Core.Entities;
+using FeatureFlags.Core.Helper;
 using FeatureFlags.Core.Helpers;
 using FeatureFlags.Core.Services;
 using FeatureFlags.Core.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
 
 namespace FeatureFlags.Web.Controllers
 {
@@ -21,7 +23,7 @@ namespace FeatureFlags.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<JsonResult> PostsDatatable(int draw, int start, int length, string keyword = "", int userId = 0, CancellationToken token = default)
+        public async Task<JsonResult> PostsDatatable(int draw, int start, int length, string keyword = "", int userId = 0, List<int>? flags = null, CancellationToken token = default)
         {
             var data = new List<List<string>>();
             int recordsTotal = 0;
@@ -33,7 +35,9 @@ namespace FeatureFlags.Web.Controllers
             {
                 length = length <= 0 ? Constants.datatablePageSize : length;
 
-                IEnumerable<PostDto> postList = await _postService.LoadPostsAsync(start, length, keyword, userId, token) ?? new List<PostDto>();
+                var combinedFlags = UserFlagsHelper.GetCombinedFlags(flags);
+
+                IEnumerable<PostDto> postList = await _postService.LoadPostsAsync(start, length, keyword, userId, combinedFlags, token) ?? [];
                 recordsTotal = postList.FirstOrDefault()?.DataCount ?? 0;
                 recordsFiltered = recordsTotal;
 
@@ -42,8 +46,7 @@ namespace FeatureFlags.Web.Controllers
                 {
                     var postActions = GetPostActions(item.Id, item.Title);
 
-                    var row = new List<string>
-                    {
+                    List<string> row = [
                         sl++.ToString(),
                         item.Title,
                         item.Content,
@@ -52,7 +55,8 @@ namespace FeatureFlags.Web.Controllers
                         item.CreatedAt.ToString("MMM dd, yyyy hh:mm:ss tt"),
                         item.ModifiedAt?.ToString("MMM dd, yyyy hh:mm:ss tt") ?? "-",
                         postActions
-                    };
+                    ];
+
                     data.Add(row);
                 }
 

@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using FeatureFlags.Core.Dtos;
 using FeatureFlags.Core.Entities;
+using FeatureFlags.Core.Enums;
 using System.Data;
 
 namespace FeatureFlags.Core.Repositories
@@ -28,13 +29,13 @@ namespace FeatureFlags.Core.Repositories
 
             if (flag != null)
             {
-                if (flag == 0)
+                if (flag == (int)UserFlags.None)
                 {
-                    conditionQuery += $"AND u.Flags = 0";
+                    conditionQuery += $" AND u.Flags = {(int)UserFlags.None} {Environment.NewLine}";
                 }
                 else
                 {
-                    conditionQuery += $"AND (u.Flags & @{nameof(flag)}) = @{nameof(flag)}";
+                    conditionQuery += $" AND (u.Flags & @{nameof(flag)}) = @{nameof(flag)} {Environment.NewLine}";
                     parameters.Add($"@{nameof(flag)}", flag, dbType: DbType.Int32);
                 }
             }
@@ -96,7 +97,7 @@ OFFSET @start ROWS FETCH NEXT @length ROWS ONLY
 
             if (!string.IsNullOrWhiteSpace(name))
             {
-                conditionQuery += $"AND Username LIKE @{nameof(name)}";
+                conditionQuery += $" AND Username LIKE @{nameof(name)} {Environment.NewLine}";
                 parameters.Add($"@{nameof(name)}", $"%{name.Trim()}%", dbType: DbType.String);
             }
 
@@ -206,8 +207,8 @@ OFFSET @offset ROWS FETCH NEXT @resultCount ROWS ONLY
 
             if (userIdToExclude != 0)
             {
-                conditionQuery += $"AND Id != @{nameof(userIdToExclude)}";
-                parameters.Add($"@{nameof(userIdToExclude)}", userIdToExclude, dbType: DbType.UInt32);
+                conditionQuery += $" AND Id != @{nameof(userIdToExclude)} {Environment.NewLine}";
+                parameters.Add($"@{nameof(userIdToExclude)}", userIdToExclude, dbType: DbType.Int32);
             }
 
             parameters.Add($"@{nameof(username)}", username , dbType: DbType.String);

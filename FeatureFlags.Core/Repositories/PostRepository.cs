@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using FeatureFlags.Core.Dtos;
 using FeatureFlags.Core.Entities;
+using FeatureFlags.Core.Enums;
 using System.Data;
 
 namespace FeatureFlags.Core.Repositories
@@ -10,7 +11,7 @@ namespace FeatureFlags.Core.Repositories
         Task CreatePostAsync(Post post);
         Task DeletePostAsync(int postId);
         Task<PostDto?> GetPostByIdAsync(int postId);
-        Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0);
+        Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0, int combinedFlags = 0);
         Task UpdatePostAsync(Post post);
         Task<Post?> GetPostByTitleAndUserIdAsync(string title, int userId, int postId = 0);
         Task<int> GetRandomUserIdAsync();
@@ -21,21 +22,27 @@ namespace FeatureFlags.Core.Repositories
     {
         private readonly IDbConnection _dbConnection = dbConnection;
 
-        public async Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0)
+        public async Task<IEnumerable<PostDto>> LoadPostsAsync(int start, int length, string keyword = "", int userId = 0, int combinedFlags = 0)
         {
             var parameters = new DynamicParameters();
             string conditionQuery = string.Empty;
 
             if (!string.IsNullOrWhiteSpace(keyword))
             {
-                conditionQuery += $"AND (p.Title LIKE @{nameof(keyword)} OR p.Content LIKE @{nameof(keyword)})";
+                conditionQuery += $" AND (p.Title LIKE @{nameof(keyword)} OR p.Content LIKE @{nameof(keyword)}) {Environment.NewLine}";
                 parameters.Add($"@{nameof(keyword)}", $"%{keyword.Trim()}%", dbType: DbType.String);
             }
 
             if (userId != 0)
             {
-                conditionQuery += $"AND u.Id = @{nameof(userId)}";
+                conditionQuery += $" AND u.Id = @{nameof(userId)} {Environment.NewLine}";
                 parameters.Add($"@{nameof(userId)}", userId, dbType: DbType.Int32);
+            }
+
+            if (combinedFlags != (int)UserFlags.None)
+            {
+                conditionQuery += $" AND (u.Flags & @{nameof(combinedFlags)}) = @{nameof(combinedFlags)} {Environment.NewLine}";
+                parameters.Add($"@{nameof(combinedFlags)}", combinedFlags, dbType: DbType.Int32);
             }
 
             string query = $@"
@@ -145,7 +152,7 @@ OFFSET @{nameof(start)} ROWS FETCH NEXT @{nameof(length)} ROWS ONLY";
 
             if (postId != 0)
             {
-                conditionQuery += $"AND Id != @{nameof(postId)}";
+                conditionQuery += $" AND Id != @{nameof(postId)} {Environment.NewLine}";
                 parameters.Add($"@{nameof(postId)}", postId, dbType: DbType.Int32);
             }
 

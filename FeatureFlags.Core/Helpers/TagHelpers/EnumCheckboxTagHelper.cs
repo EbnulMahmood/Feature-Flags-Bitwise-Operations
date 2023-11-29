@@ -1,5 +1,7 @@
 ﻿using FeatureFlags.Core.Enums;
 using Microsoft.AspNetCore.Razor.TagHelpers;
+using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using System.Text;
 
 namespace FeatureFlags.Core.Helpers.TagHelpers
@@ -8,6 +10,7 @@ namespace FeatureFlags.Core.Helpers.TagHelpers
     public class EnumCheckboxesTagHelper : TagHelper
     {
         public required string For { get; set; }
+        public int Col { get; set; } = 3;
 
         public override void Process(TagHelperContext context, TagHelperOutput output)
         {
@@ -16,21 +19,45 @@ namespace FeatureFlags.Core.Helpers.TagHelpers
 
             var stringBuilder = new StringBuilder();
 
-            foreach (var value in values)
+            stringBuilder.AppendLine("<div id='checkboxContainer'>");
+
+            for (int i = 0; i < values.Count; i++)
             {
+                if (i % Col == 0)
+                {
+                    if (i != 0)
+                    {
+                        stringBuilder.AppendLine("</div>");
+                    }
+                    stringBuilder.AppendLine("<div class='row mt-2'>");
+                }
+
+                string displayName = GetDisplayName(values[i]);
                 stringBuilder.AppendLine(
-                    $@"<div class=""form-group"">
-                        <label class=""control-label"">{Enum.GetName(enumType, value)}</label>
-                        <div class=""form-check form-switch"">
-                            <input class=""form-check-input"" type=""checkbox"" id=""{value}"" name=""{For}"" value=""{(int)value}"" />
-                            <label class=""form-check-label"" for=""{value}"">{Enum.GetName(enumType, value)}</label>
+                    $@"<div class='col-md-{12 / Col}'>
+                        <div class='form-group mb-2'>
+                            <div class='form-check form-switch'>
+                                <input class='form-check-input' type='checkbox' id='{values[i]}' name='{For}' value='{(int)values[i]}' />
+                                <label class='form-check-label' for='{values[i]}'>{displayName}</label>
+                            </div>
                         </div>
                     </div>");
             }
 
+            stringBuilder.AppendLine("</div></div>");
+
             output.TagName = "div";
             output.TagMode = TagMode.StartTagAndEndTag;
             output.Content.SetHtmlContent(stringBuilder.ToString());
+        }
+
+        private static string GetDisplayName(UserFlags enumValue)
+        {
+            return enumValue.GetType()
+                .GetMember(enumValue.ToString())
+                .FirstOrDefault()?
+                .GetCustomAttribute<DisplayAttribute>()?
+                .Name ?? enumValue.ToString();
         }
     }
 }
