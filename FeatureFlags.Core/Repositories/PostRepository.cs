@@ -52,6 +52,7 @@ SELECT
     p.Content,
     p.Views,
     u.UserName,
+    p.UserId,
     p.CreatedAt,
     p.ModifiedAt,
     COUNT(*) OVER() AS DataCount

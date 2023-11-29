@@ -281,7 +281,7 @@ namespace FeatureFlags.Web.Controllers
         #endregion
 
         [HttpGet]
-        public async Task<IActionResult> Edit(int id)
+        public async Task<IActionResult> Edit(int id, string? controllerName = "")
         {
             var editViewModel = new UserEditViewModel { Username = string.Empty, Email = string.Empty };
 
@@ -302,6 +302,8 @@ namespace FeatureFlags.Web.Controllers
             {
                 ModelState.AddModelError("", "Invalid user.");
             }
+
+            ViewData["controller"] = controllerName ?? "Users";
 
             return View(editViewModel);
         }

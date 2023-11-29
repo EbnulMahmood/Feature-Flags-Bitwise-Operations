@@ -3,6 +3,7 @@
 
 @{
     ViewData["Title"] = "Edit";
+    string controller = ViewData["controller"]?.ToString() ?? "Users";
 }
 
 <h1 class="display-6 fw-bold mb-4">Edit</h1>
@@ -34,6 +35,6 @@
 
     <div class="form-group mt-4">
         <button type="submit" class="btn btn-success">Save Changes</button>
-        <a asp-action="Index" class="btn btn-secondary">Back</a>
+        @Html.ActionLink("Back", "Index", controller, null, new { @class = "btn btn-secondary" })
     </div>
 </form>

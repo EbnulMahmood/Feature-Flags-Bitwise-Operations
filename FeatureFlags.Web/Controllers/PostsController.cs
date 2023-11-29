@@ -6,7 +6,6 @@ using FeatureFlags.Core.Helpers;
 using FeatureFlags.Core.Services;
 using FeatureFlags.Core.ViewModels;
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
 
 namespace FeatureFlags.Web.Controllers
 {
@@ -51,7 +50,7 @@ namespace FeatureFlags.Web.Controllers
                         item.Title,
                         item.Content,
                         item.Views.ToString(),
-                        item.UserName,
+                        $"<a href='{Url.Action(nameof(Edit), "Users", new { id = item.UserId, controllerName = "Posts" })}' class='user-link'>{item.UserName}</a>",
                         item.CreatedAt.ToString("MMM dd, yyyy hh:mm:ss tt"),
                         item.ModifiedAt?.ToString("MMM dd, yyyy hh:mm:ss tt") ?? "-",
                         postActions
