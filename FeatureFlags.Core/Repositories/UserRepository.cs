@@ -44,13 +44,13 @@ namespace FeatureFlags.Core.Repositories
             {
                 if (viewsMin.HasValue)
                 {
-                    postSubQuery += $"AND p.Views >= @{nameof(viewsMin)} ";
+                    postSubQuery += $" AND p.Views >= @{nameof(viewsMin)} {Environment.NewLine}";
                     parameters.Add($"@{nameof(viewsMin)}", viewsMin, dbType: DbType.Int64);
                 }
 
                 if (viewsMax.HasValue)
                 {
-                    postSubQuery += $"AND p.Views <= @{nameof(viewsMax)} ";
+                    postSubQuery += $" AND p.Views <= @{nameof(viewsMax)} {Environment.NewLine}";
                     parameters.Add($"@{nameof(viewsMax)}", viewsMax, dbType: DbType.Int64);
                 }
 
